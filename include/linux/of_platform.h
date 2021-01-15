@@ -7,10 +7,10 @@
  */
 
 #include <linux/mod_devicetable.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
 
 struct device;
+struct platform_device;
+struct device_node;
 struct of_device_id;
 
 /**
