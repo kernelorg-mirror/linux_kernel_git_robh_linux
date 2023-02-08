@@ -1976,15 +1976,15 @@ static int sdma_event_remap(struct sdma_engine *sdma)
 	struct property *event_remap;
 	struct regmap *gpr;
 	char propname[] = "fsl,sdma-event-remap";
-	u32 reg, val, shift, num_map, i;
+	u32 reg, val, shift, i;
+	int num_map;
 	int ret = 0;
 
 	if (IS_ERR(np) || !gpr_np)
 		goto out;
 
-	event_remap = of_find_property(np, propname, NULL);
-	num_map = event_remap ? (event_remap->length / sizeof(u32)) : 0;
-	if (!num_map) {
+	num_map = of_property_count_u32_elems(np, propname);
+	if (num_map < 0) {
 		dev_dbg(sdma->dev, "no event needs to be remapped\n");
 		goto out;
 	} else if (num_map % EVENT_REMAP_CELLS) {

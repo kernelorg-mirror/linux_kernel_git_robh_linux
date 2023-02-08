@@ -119,20 +119,6 @@ mt76_eeprom_override(struct mt76_phy *phy)
 }
 EXPORT_SYMBOL_GPL(mt76_eeprom_override);
 
-static bool mt76_string_prop_find(struct property *prop, const char *str)
-{
-	const char *cp = NULL;
-
-	if (!prop || !str || !str[0])
-		return false;
-
-	while ((cp = of_prop_next_string(prop, cp)) != NULL)
-		if (!strcasecmp(cp, str))
-			return true;
-
-	return false;
-}
-
 static struct device_node *
 mt76_find_power_limits_node(struct mt76_dev *dev)
 {
@@ -153,16 +139,17 @@ mt76_find_power_limits_node(struct mt76_dev *dev)
 		return NULL;
 
 	for_each_child_of_node(np, cur) {
-		struct property *country = of_find_property(cur, "country", NULL);
-		struct property *regd = of_find_property(cur, "regdomain", NULL);
+		int ret1, ret2;
+		
+		ret1 = of_property_match_string(cur, "country", dev->alpha2);
+		ret2 = of_property_match_string(cur, "regdomain", region_name);
 
-		if (!country && !regd) {
+		if (ret1 == -EINVAL && ret2 == -EINVAL) {
+			/* Properties not found */
 			fallback = cur;
 			continue;
 		}
-
-		if (mt76_string_prop_find(country, dev->alpha2) ||
-		    mt76_string_prop_find(regd, region_name)) {
+		if (ret1 >= 0 || ret2 >= 0) {
 			of_node_put(np);
 			return cur;
 		}
