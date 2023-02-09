@@ -262,7 +262,7 @@ int nfcmrvl_parse_dt(struct device_node *node,
 	}
 	pdata->reset_n_io = reset_n_io;
 
-	if (of_find_property(node, "hci-muxed", NULL))
+	if (of_property_present(node, "hci-muxed"))
 		pdata->hci_muxed = 1;
 	else
 		pdata->hci_muxed = 0;
