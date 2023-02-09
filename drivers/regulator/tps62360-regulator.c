@@ -296,16 +296,16 @@ static struct tps62360_regulator_platform_data *
 		return NULL;
 	}
 
-	if (of_find_property(np, "ti,vsel0-state-high", NULL))
+	if (of_property_present(np, "ti,vsel0-state-high"))
 		pdata->vsel0_def_state = 1;
 
-	if (of_find_property(np, "ti,vsel1-state-high", NULL))
+	if (of_property_present(np, "ti,vsel1-state-high"))
 		pdata->vsel1_def_state = 1;
 
-	if (of_find_property(np, "ti,enable-pull-down", NULL))
+	if (of_property_present(np, "ti,enable-pull-down"))
 		pdata->en_internal_pulldn = true;
 
-	if (of_find_property(np, "ti,enable-vout-discharge", NULL))
+	if (of_property_present(np, "ti,enable-vout-discharge"))
 		pdata->en_discharge = true;
 
 	return pdata;

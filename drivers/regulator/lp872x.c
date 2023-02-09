@@ -832,7 +832,7 @@ static struct lp872x_platform_data
 		return ERR_PTR(-ENOMEM);
 
 	of_property_read_u8(np, "ti,general-config", &pdata->general_config);
-	if (of_find_property(np, "ti,update-config", NULL))
+	if (of_property_present(np, "ti,update-config"))
 		pdata->update_config = true;
 
 	pdata->dvs = devm_kzalloc(dev, sizeof(struct lp872x_dvs), GFP_KERNEL);
