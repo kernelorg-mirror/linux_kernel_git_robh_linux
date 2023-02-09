@@ -508,7 +508,7 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 		of_usb_update_otg_caps(hsotg->dev->of_node, &p->otg_caps);
 	}
 
-	if (of_find_property(hsotg->dev->of_node, "disable-over-current", NULL))
+	if (of_property_present(hsotg->dev->of_node, "disable-over-current"))
 		p->oc_disable = true;
 }
 
