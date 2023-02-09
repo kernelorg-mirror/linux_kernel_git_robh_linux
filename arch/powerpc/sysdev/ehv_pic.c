@@ -264,7 +264,7 @@ void __init ehv_pic_init(void)
 		return;
 	}
 
-	if (!of_find_property(np, "has-external-proxy", NULL))
+	if (!of_property_present(np, "has-external-proxy"))
 		coreint_flag = 0;
 
 	ehv_pic = kzalloc(sizeof(struct ehv_pic), GFP_KERNEL);
