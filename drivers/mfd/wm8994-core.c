@@ -281,17 +281,17 @@ static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
 
 	pdata->lineout1_diff = true;
 	pdata->lineout2_diff = true;
-	if (of_find_property(np, "wlf,lineout1-se", NULL))
+	if (of_property_present(np, "wlf,lineout1-se"))
 		pdata->lineout1_diff = false;
-	if (of_find_property(np, "wlf,lineout2-se", NULL))
+	if (of_property_present(np, "wlf,lineout2-se"))
 		pdata->lineout2_diff = false;
 
-	if (of_find_property(np, "wlf,lineout1-feedback", NULL))
+	if (of_property_present(np, "wlf,lineout1-feedback"))
 		pdata->lineout1fb = true;
-	if (of_find_property(np, "wlf,lineout2-feedback", NULL))
+	if (of_property_present(np, "wlf,lineout2-feedback"))
 		pdata->lineout2fb = true;
 
-	if (of_find_property(np, "wlf,ldoena-always-driven", NULL))
+	if (of_property_present(np, "wlf,ldoena-always-driven"))
 		pdata->lineout2fb = true;
 
 	pdata->spkmode_pu = of_property_read_bool(np, "wlf,spkmode-pu");
