@@ -224,7 +224,7 @@ static int __load_zsregs(struct zilog_channel __iomem *channel, unsigned char *r
 	/* Lower and upper byte of baud rate generator divisor.  */
 	write_zsreg(channel, R12, regs[R12]);
 	write_zsreg(channel, R13, regs[R13]);
-	
+
 	/* Now rewrite R14, with BRENAB (if set).  */
 	write_zsreg(channel, R14, regs[R14]);
 
@@ -656,7 +656,7 @@ static void sunzilog_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	else
 		clear_bits |= DTR;
 
-	/* NOTE: Not subject to 'transmitter active' rule.  */ 
+	/* NOTE: Not subject to 'transmitter active' rule.  */
 	up->curregs[R5] |= set_bits;
 	up->curregs[R5] &= ~clear_bits;
 	write_zsreg(channel, R5, up->curregs[R5]);
@@ -743,7 +743,7 @@ static void sunzilog_enable_ms(struct uart_port *port)
 	if (new_reg != up->curregs[R15]) {
 		up->curregs[R15] = new_reg;
 
-		/* NOTE: Not subject to 'transmitter active' rule.  */ 
+		/* NOTE: Not subject to 'transmitter active' rule.  */
 		write_zsreg(channel, R15, up->curregs[R15] & ~WR7pEN);
 	}
 }
@@ -770,7 +770,7 @@ static void sunzilog_break_ctl(struct uart_port *port, int break_state)
 	if (new_reg != up->curregs[R5]) {
 		up->curregs[R5] = new_reg;
 
-		/* NOTE: Not subject to 'transmitter active' rule.  */ 
+		/* NOTE: Not subject to 'transmitter active' rule.  */
 		write_zsreg(channel, R5, up->curregs[R5]);
 	}
 
@@ -1403,7 +1403,7 @@ static int zs_probe(struct platform_device *op)
 	int keyboard_mouse = 0;
 	int err;
 
-	if (of_find_property(op->dev.of_node, "keyboard", NULL))
+	if (of_property_present(op->dev.of_node, "keyboard"))
 		keyboard_mouse = 1;
 
 	/* uarts must come before keyboards/mice */
@@ -1553,7 +1553,7 @@ static int __init sunzilog_init(void)
 
 	for_each_node_by_name(dp, "zs") {
 		num_sunzilog++;
-		if (of_find_property(dp, "keyboard", NULL))
+		if (of_property_present(dp, "keyboard"))
 			num_keybms++;
 	}
 
