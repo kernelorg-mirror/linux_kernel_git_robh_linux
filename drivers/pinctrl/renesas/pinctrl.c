@@ -125,8 +125,8 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	 * inside a subnode nor across subnodes.
 	 */
 	if (!pmx->func_prop_name) {
-		if (of_find_property(np, "groups", NULL) ||
-		    of_find_property(np, "pins", NULL)) {
+		if (of_property_present(np, "groups")||
+		    of_property_present(np, "pins")) {
 			pmx->func_prop_name = "function";
 			pmx->groups_prop_name = "groups";
 			pmx->pins_prop_name = "pins";
