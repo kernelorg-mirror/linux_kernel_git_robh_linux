@@ -325,7 +325,7 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 	writel(~0x0, ACK_INT_CLR_REG(mbox->ipc));
 
 	/* use interrupt for tx's ack */
-	if (of_find_property(node, "hi6220,mbox-tx-noirq", NULL))
+	if (of_property_present(node, "hi6220,mbox-tx-noirq"))
 		mbox->tx_irq_mode = false;
 	else
 		mbox->tx_irq_mode = true;
