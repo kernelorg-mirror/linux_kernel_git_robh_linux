@@ -4,7 +4,7 @@
  * drivers and users.
  *
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
- * Copyright © 2006      Red Hat UK Limited 
+ * Copyright © 2006      Red Hat UK Limited
  */
 
 #include <linux/module.h>
@@ -739,7 +739,7 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	mutex_unlock(&mtd_table_mutex);
 
-	if (of_find_property(mtd_get_of_node(mtd), "linux,rootfs", NULL)) {
+	if (of_property_present(mtd_get_of_node(mtd), "linux,rootfs")) {
 		if (IS_BUILTIN(CONFIG_MTD)) {
 			pr_info("mtd: setting mtd%d (%s) as root device\n", mtd->index, mtd->name);
 			ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, mtd->index);
@@ -2451,7 +2451,7 @@ static struct backing_dev_info * __init mtd_bdi_init(const char *name)
 
 	/*
 	 * We put '-0' suffix to the name to get the same name format as we
-	 * used to get. Since this is called only once, we get a unique name. 
+	 * used to get. Since this is called only once, we get a unique name.
 	 */
 	ret = bdi_register(bdi, "%.28s-0", name);
 	if (ret)

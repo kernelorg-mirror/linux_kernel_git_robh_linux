@@ -99,7 +99,7 @@ static void macronix_nand_onfi_init(struct nand_chip *chip)
 	if (!p->onfi)
 		return;
 
-	if (of_find_property(dn, "mxic,enable-randomizer-otp", NULL))
+	if (of_property_present(dn, "mxic,enable-randomizer-otp"))
 		rand_otp = 1;
 
 	mxic = (struct nand_onfi_vendor_macronix *)p->onfi->vendor;
