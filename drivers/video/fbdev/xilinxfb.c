@@ -469,7 +469,7 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 		pdata.yvirt = prop[1];
 	}
 
-	if (of_find_property(pdev->dev.of_node, "rotate-display", NULL))
+	if (of_property_present(pdev->dev.of_node, "rotate-display"))
 		pdata.rotate_screen = 1;
 
 	platform_set_drvdata(pdev, drvdata);
