@@ -3583,7 +3583,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	/* init the hw stats lock */
 	spin_lock_init(&gbe_dev->hw_stats_lock);
 
-	if (of_find_property(node, "enable-ale", NULL)) {
+	if (of_property_present(node, "enable-ale")) {
 		gbe_dev->enable_ale = true;
 		dev_info(dev, "ALE enabled\n");
 	} else {

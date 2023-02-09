@@ -226,7 +226,7 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->gmii_sel))
 		return PTR_ERR(priv->gmii_sel);
 
-	if (of_find_property(pdev->dev.of_node, "rmii-clock-ext", NULL))
+	if (of_property_present(pdev->dev.of_node, "rmii-clock-ext"))
 		priv->rmii_clock_external = true;
 
 	dev_set_drvdata(&pdev->dev, priv);

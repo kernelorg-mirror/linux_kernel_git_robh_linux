@@ -447,7 +447,7 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 	dev_info(&spi->dev, "selected chip family is %s\n",
 		 pdev_data->family->name);
 
-	if (of_find_property(dt_node, "clock-xtal", NULL))
+	if (of_property_present(dt_node, "clock-xtal"))
 		pdev_data->ref_clock_xtal = true;
 
 	/* optional clock frequency params */
