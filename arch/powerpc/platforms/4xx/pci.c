@@ -348,7 +348,7 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	}
 
 	/* Check if primary bridge */
-	if (of_get_property(np, "primary", NULL))
+	if (of_property_present(np, "primary"))
 		primary = 1;
 
 	/* Get bus range if any */
