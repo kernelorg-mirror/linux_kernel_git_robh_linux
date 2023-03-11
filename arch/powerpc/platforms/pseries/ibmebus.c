@@ -44,9 +44,10 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
-#include <linux/of_platform.h>
 #include <asm/ibmebus.h>
 #include <asm/machdep.h>
 
