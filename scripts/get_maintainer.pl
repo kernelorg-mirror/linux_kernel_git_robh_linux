@@ -58,7 +58,7 @@ my $status = 0;
 my $letters = "";
 my $keywords = 1;
 my $sections = 0;
-my $email_file_emails = 0;
+my $email_file_emails = -1;
 my $from_filename = 0;
 my $pattern_depth = 0;
 my $self_test = undef;
@@ -435,6 +435,8 @@ sub maintainers_in_file {
     my ($file) = @_;
 
     return if ($file =~ m@\bMAINTAINERS$@);
+
+    return if ($email_file_emails == 0);
 
     if (-f $file && ($email_file_emails || $file =~ /\.yaml$/)) {
 	open(my $f, '<', $file)
