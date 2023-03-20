@@ -12,6 +12,7 @@ rules:
     allow-non-breakable-words: true
     level: warning
   braces:
+    forbid: non-empty
     min-spaces-inside: 0
     max-spaces-inside: 1
     min-spaces-inside-empty: 0
