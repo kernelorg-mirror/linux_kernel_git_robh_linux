@@ -1,13 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-# Keep at91 dtb files sorted alphabetically for each SoC
-dtb-$(CONFIG_MACH_KIRKWOOD) += \
-	kirkwood-netgear_readynas_nv+_v2.dtb \
-
-o
-o
-dtb-$(CONFIG_SOC_DRA7XX) += \
-	am57xx-evm-reva3.dtb \
-
 
 subdir-y += actions
 subdir-y += airoha
