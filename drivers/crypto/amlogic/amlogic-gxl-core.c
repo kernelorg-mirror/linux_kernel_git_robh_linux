@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/dma-mapping.h>

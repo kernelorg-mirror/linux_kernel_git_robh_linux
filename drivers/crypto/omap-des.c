@@ -27,8 +27,6 @@
 #include <linux/dmaengine.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/crypto.h>
 #include <linux/interrupt.h>
