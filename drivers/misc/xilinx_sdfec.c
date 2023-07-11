@@ -15,12 +15,14 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/compat.h>
 #include <linux/highmem.h>
+#include <linux/of.h>
 
 #include <uapi/misc/xilinx_sdfec.h>
 
