@@ -10,10 +10,12 @@
 #include <linux/fsl_devices.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 
 struct fsl_usb2_dev_data {
 	char *dr_mode;		/* controller mode */
