@@ -3,7 +3,7 @@
  *  Maple (970 eval board) setup code
  *
  *  (c) Copyright 2004 Benjamin Herrenschmidt (benh@kernel.crashing.org),
- *                     IBM Corp. 
+ *                     IBM Corp.
  */
 
 #undef DEBUG
@@ -36,8 +36,8 @@
 #include <linux/serial.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/memblock.h>
 
 #include <asm/processor.h>
