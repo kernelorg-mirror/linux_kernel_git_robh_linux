@@ -33,6 +33,7 @@
  *  should stick to this procedure.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
@@ -43,7 +44,6 @@
 #include <linux/ioport.h>
 #include <linux/iopoll.h>
 #include <linux/in.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/slab.h>
 #include <linux/string.h>
