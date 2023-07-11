@@ -3,13 +3,13 @@
 #ifndef __MAILBOX_CONTROLLER_H
 #define __MAILBOX_CONTROLLER_H
 
-#include <linux/of.h>
 #include <linux/types.h>
 #include <linux/hrtimer.h>
 #include <linux/device.h>
 #include <linux/completion.h>
 
 struct mbox_chan;
+struct of_phandle_args;
 
 /**
  * struct mbox_chan_ops - methods to control mailbox channels

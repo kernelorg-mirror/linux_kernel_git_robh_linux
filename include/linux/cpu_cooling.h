@@ -13,7 +13,6 @@
 #ifndef __CPU_COOLING_H__
 #define __CPU_COOLING_H__
 
-#include <linux/of.h>
 #include <linux/thermal.h>
 #include <linux/cpumask.h>
 

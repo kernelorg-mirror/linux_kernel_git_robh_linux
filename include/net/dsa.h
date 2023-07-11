@@ -13,7 +13,6 @@
 #include <linux/notifier.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/of.h>
 #include <linux/ethtool.h>
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
@@ -22,6 +21,7 @@
 #include <net/devlink.h>
 #include <net/switchdev.h>
 
+struct device_node;
 struct dsa_8021q_context;
 struct tc_action;
 struct phy_device;

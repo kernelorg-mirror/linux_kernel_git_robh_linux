@@ -7,8 +7,9 @@
 #define __SOC_RASPBERRY_FIRMWARE_H__
 
 #include <linux/types.h>
-#include <linux/of_device.h>
 
+struct device;
+struct device_node;
 struct rpi_firmware;
 
 enum rpi_firmware_property_status {

@@ -4,8 +4,10 @@
 
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 
+struct device;
+struct fwnode_handle;
+struct of_phandle_args;
 struct pwm_chip;
 
 /**
