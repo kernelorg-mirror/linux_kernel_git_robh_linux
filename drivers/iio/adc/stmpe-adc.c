@@ -14,9 +14,10 @@
 #include <linux/kernel.h>
 #include <linux/mfd/stmpe.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
+#include <linux/of.h>
 
 #define STMPE_REG_INT_STA		0x0B
 #define STMPE_REG_ADC_INT_EN		0x0E
