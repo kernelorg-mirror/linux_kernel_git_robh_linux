@@ -27,7 +27,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
@@ -1445,7 +1445,7 @@ static int dss_probe(struct platform_device *pdev)
 	if (soc)
 		dss->feat = soc->data;
 	else
-		dss->feat = of_match_device(dss_of_match, &pdev->dev)->data;
+		dss->feat = of_device_get_match_data(&pdev->dev);
 
 	/* Map I/O registers, get and setup clocks. */
 	dss->base = devm_platform_ioremap_resource(pdev, 0);

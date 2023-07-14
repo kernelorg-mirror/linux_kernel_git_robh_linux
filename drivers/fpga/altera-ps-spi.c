@@ -19,7 +19,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/sizes.h>
 
@@ -256,7 +256,6 @@ static const struct altera_ps_data *id_to_data(const struct spi_device_id *id)
 static int altera_ps_probe(struct spi_device *spi)
 {
 	struct altera_ps_conf *conf;
-	const struct of_device_id *of_id;
 	struct fpga_manager *mgr;
 
 	conf = devm_kzalloc(&spi->dev, sizeof(*conf), GFP_KERNEL);
@@ -264,10 +263,7 @@ static int altera_ps_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	if (spi->dev.of_node) {
-		of_id = of_match_device(of_ef_match, &spi->dev);
-		if (!of_id)
-			return -ENODEV;
-		conf->data = of_id->data;
+		conf->data = of_device_get_match_data(&spi->dev);
 	} else {
 		conf->data = id_to_data(spi_get_device_id(spi));
 		if (!conf->data)

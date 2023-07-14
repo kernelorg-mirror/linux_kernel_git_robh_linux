@@ -12,9 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -1302,8 +1300,8 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 	if (!np)
 		return -ENODEV;
 
-	info->dev = dev;
-	info->ops = of_device_get_match_data(dev);
+	info->dev = &pdev->dev;
+	info->ops = of_device_get_match_data(&pdev->dev);
 	at91_pinctrl_child_count(info, np);
 
 	/*

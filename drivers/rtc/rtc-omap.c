@@ -729,16 +729,14 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	struct omap_rtc	*rtc;
 	u8 reg, mask, new_ctrl;
 	const struct platform_device_id *id_entry;
-	const struct of_device_id *of_id;
 	int ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	of_id = of_match_device(omap_rtc_of_match, &pdev->dev);
-	if (of_id) {
-		rtc->type = of_id->data;
+	rtc->type = of_device_get_match_data(&pdev->dev);
+	if (rtc->type) {
 		rtc->is_pmic_controller = rtc->type->has_pmic_mode &&
 			of_device_is_system_power_controller(pdev->dev.of_node);
 	} else {

@@ -30,8 +30,8 @@
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/pgtable.h>
 
 #include <asm/irq.h>
@@ -95,7 +95,6 @@ static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, 
 
 }
 
-static const struct of_device_id fs_enet_mdio_fec_match[];
 static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
@@ -105,10 +104,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	int (*get_bus_freq)(struct device *);
 	int ret = -ENOMEM, clock, speed;
 
-	match = of_match_device(fs_enet_mdio_fec_match, &ofdev->dev);
-	if (!match)
-		return -EINVAL;
-	get_bus_freq = match->data;
+	get_bus_freq = of_device_get_match_data(&ofdev->dev);
 
 	new_bus = mdiobus_alloc();
 	if (!new_bus)

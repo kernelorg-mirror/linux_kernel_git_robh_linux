@@ -510,7 +510,7 @@ const struct cs42xx8_driver_data cs42888_data = {
 };
 EXPORT_SYMBOL_GPL(cs42888_data);
 
-int cs42xx8_probe(struct device *dev, struct regmap *regmap, struct cs42xx8_driver_data *drvdata)
+int cs42xx8_probe(struct device *dev, struct regmap *regmap, const struct cs42xx8_driver_data *drvdata)
 {
 	struct cs42xx8_priv *cs42xx8;
 	int ret, val, i;

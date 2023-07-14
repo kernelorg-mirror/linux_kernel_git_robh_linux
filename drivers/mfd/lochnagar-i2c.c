@@ -270,7 +270,6 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	const struct lochnagar_config *config = NULL;
-	const struct of_device_id *of_id;
 	struct lochnagar *lochnagar;
 	struct gpio_desc *reset, *present;
 	unsigned int val;
@@ -282,11 +281,7 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 	if (!lochnagar)
 		return -ENOMEM;
 
-	of_id = of_match_device(lochnagar_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
-
-	config = of_id->data;
+	config = of_device_get_match_data(dev);
 
 	lochnagar->dev = dev;
 	mutex_init(&lochnagar->analogue_config_lock);

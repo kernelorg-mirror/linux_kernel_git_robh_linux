@@ -12,27 +12,22 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 
 #include "cs42xx8.h"
 
-static const struct of_device_id cs42xx8_of_match[];
-
 static int cs42xx8_i2c_probe(struct i2c_client *i2c)
 {
 	int ret;
-	struct cs42xx8_driver_data *drvdata;
-	const struct of_device_id *of_id;
+	const struct cs42xx8_driver_data *drvdata;
 
-	of_id = of_match_device(cs42xx8_of_match, &i2c->dev);
-	if (!of_id) {
+	drvdata = of_device_get_match_data(&i2c->dev);
+	if (!drvdata) {
 		dev_err(&i2c->dev, "failed to find driver data\n");
 		return -EINVAL;
 	}
-
-	drvdata = (struct cs42xx8_driver_data *)of_id->data;
 
 	ret = cs42xx8_probe(&i2c->dev,
 		devm_regmap_init_i2c(i2c, &cs42xx8_regmap_config), drvdata);

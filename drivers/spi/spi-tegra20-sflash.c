@@ -419,13 +419,6 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	struct spi_master	*master;
 	struct tegra_sflash_data	*tsd;
 	int ret;
-	const struct of_device_id *match;
-
-	match = of_match_device(tegra_sflash_of_match, &pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*tsd));
 	if (!master) {

@@ -9,7 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/lp87565.h>
@@ -46,7 +46,6 @@ MODULE_DEVICE_TABLE(of, of_lp87565_match_table);
 static int lp87565_probe(struct i2c_client *client)
 {
 	struct lp87565 *lp87565;
-	const struct of_device_id *of_id;
 	int ret;
 	unsigned int otpid;
 
@@ -89,10 +88,7 @@ static int lp87565_probe(struct i2c_client *client)
 	}
 
 	lp87565->rev = otpid & LP87565_OTP_REV_OTP_ID;
-
-	of_id = of_match_device(of_lp87565_match_table, &client->dev);
-	if (of_id)
-		lp87565->dev_type = (enum lp87565_device_type)of_id->data;
+	lp87565->dev_type = (uintptr_t)of_device_get_match_data(&client->dev);
 
 	i2c_set_clientdata(client, lp87565);
 

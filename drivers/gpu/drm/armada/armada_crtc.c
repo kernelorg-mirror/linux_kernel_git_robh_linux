@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic.h>
@@ -1025,11 +1025,10 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 
 		variant = (const struct armada_variant *)id->driver_data;
 	} else {
-		const struct of_device_id *match;
 		struct device_node *np, *parent = dev->of_node;
 
-		match = of_match_device(dev->driver->of_match_table, dev);
-		if (!match)
+		variant = of_device_get_match_data(dev);
+		if (!variant)
 			return -ENXIO;
 
 		np = of_get_child_by_name(parent, "ports");
@@ -1041,8 +1040,6 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 			dev_err(dev, "no port node found in %pOF\n", parent);
 			return -ENXIO;
 		}
-
-		variant = match->data;
 	}
 
 	return armada_drm_crtc_create(drm, dev, res, irq, variant, port);

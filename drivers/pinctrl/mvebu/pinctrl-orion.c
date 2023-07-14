@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-mvebu.h"
@@ -218,10 +217,7 @@ static const struct of_device_id orion_pinctrl_of_match[] = {
 
 static int orion_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match =
-		of_match_device(orion_pinctrl_of_match, &pdev->dev);
-
-	pdev->dev.platform_data = (void*)match->data;
+	pdev->dev.platform_data = (void*)of_device_get_match_data(&pdev->dev);
 
 	mpp_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mpp_base))

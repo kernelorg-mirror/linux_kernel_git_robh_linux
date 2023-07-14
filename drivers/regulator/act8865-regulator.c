@@ -11,11 +11,9 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
-#include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/act8865.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/power_supply.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regmap.h>
@@ -665,13 +663,7 @@ static int act8865_pmic_probe(struct i2c_client *client)
 	int voltage_select = 0;
 
 	if (dev->of_node) {
-		const struct of_device_id *id;
-
-		id = of_match_device(of_match_ptr(act8865_dt_ids), dev);
-		if (!id)
-			return -ENODEV;
-
-		type = (unsigned long) id->data;
+		type = (unsigned long)of_device_get_match_data(dev);
 
 		voltage_select = !!of_get_property(dev->of_node,
 						   "active-semi,vsel-high",
@@ -789,6 +781,7 @@ MODULE_DEVICE_TABLE(i2c, act8865_ids);
 static struct i2c_driver act8865_pmic_driver = {
 	.driver	= {
 		.name	= "act8865",
+		.of_match_table = of_match_ptr(act8865_dt_ids),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= act8865_pmic_probe,

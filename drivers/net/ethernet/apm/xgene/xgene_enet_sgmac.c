@@ -6,6 +6,9 @@
  *	    Keyur Chudgar <kchudgar@apm.com>
  */
 
+#include <linux/acpi.h>
+#include <linux/platform_device.h>
+
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
 #include "xgene_enet_sgmac.h"

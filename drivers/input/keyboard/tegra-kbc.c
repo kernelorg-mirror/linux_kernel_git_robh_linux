@@ -602,9 +602,6 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	unsigned int debounce_cnt;
 	unsigned int scan_time_rows;
 	unsigned int keymap_rows;
-	const struct of_device_id *match;
-
-	match = of_match_device(tegra_kbc_of_match, &pdev->dev);
 
 	kbc = devm_kzalloc(&pdev->dev, sizeof(*kbc), GFP_KERNEL);
 	if (!kbc) {
@@ -613,7 +610,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	}
 
 	kbc->dev = &pdev->dev;
-	kbc->hw_support = match->data;
+	kbc->hw_support = of_device_get_match_data(&pdev->dev);
 	kbc->max_keys = kbc->hw_support->max_rows *
 				kbc->hw_support->max_columns;
 	kbc->num_rows_and_columns = kbc->hw_support->max_rows +

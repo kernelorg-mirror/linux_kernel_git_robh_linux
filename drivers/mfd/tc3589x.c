@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tc3589x.h>
 #include <linux/err.h>
@@ -331,16 +330,12 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 	struct device_node *np = dev->of_node;
 	struct tc3589x_platform_data *pdata;
 	struct device_node *child;
-	const struct of_device_id *of_id;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	of_id = of_match_device(tc3589x_match, dev);
-	if (!of_id)
-		return ERR_PTR(-ENODEV);
-	*version = (enum tc3589x_version) of_id->data;
+	*version = (uintptr_t)of_device_get_match_data(dev);
 
 	for_each_child_of_node(np, child) {
 		if (of_device_is_compatible(child, "toshiba,tc3589x-gpio"))

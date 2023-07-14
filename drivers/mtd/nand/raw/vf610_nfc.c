@@ -29,7 +29,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/swab.h>
@@ -810,7 +810,6 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
 	struct device_node *child;
-	const struct of_device_id *of_id;
 	int err;
 	int irq;
 
@@ -844,13 +843,11 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	of_id = of_match_device(vf610_nfc_dt_ids, &pdev->dev);
-	if (!of_id) {
+	nfc->variant = (enum vf610_nfc_variant)of_device_get_match_data(&pdev->dev);
+	if (!nfc->variant) {
 		err = -ENODEV;
 		goto err_disable_clk;
 	}
-
-	nfc->variant = (enum vf610_nfc_variant)of_id->data;
 
 	for_each_available_child_of_node(nfc->dev->of_node, child) {
 		if (of_device_is_compatible(child, "fsl,vf610-nfc-nandcs")) {

@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -425,8 +424,8 @@ MODULE_DEVICE_TABLE(spi, eeprom_93xx46_spi_ids);
 
 static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 {
-	const struct of_device_id *of_id =
-		of_match_device(eeprom_93xx46_of_table, &spi->dev);
+	const struct eeprom_93xx46_devtype_data *data =
+		of_device_get_match_data(&spi->dev);
 	struct device_node *np = spi->dev.of_node;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
@@ -463,9 +462,7 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 	pd->finish = select_deassert;
 	gpiod_direction_output(pd->select, 0);
 
-	if (of_id->data) {
-		const struct eeprom_93xx46_devtype_data *data = of_id->data;
-
+	if (data) {
 		pd->quirks = data->quirks;
 		pd->flags |= data->flags;
 	}
@@ -566,7 +563,7 @@ static void eeprom_93xx46_remove(struct spi_device *spi)
 static struct spi_driver eeprom_93xx46_driver = {
 	.driver = {
 		.name	= "93xx46",
-		.of_match_table = of_match_ptr(eeprom_93xx46_of_table),
+		.of_match_table = eeprom_93xx46_of_table,
 	},
 	.probe		= eeprom_93xx46_probe,
 	.remove		= eeprom_93xx46_remove,

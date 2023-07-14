@@ -324,16 +324,11 @@ MODULE_DEVICE_TABLE(of, mt7621_spi_match);
 
 static int mt7621_spi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct spi_controller *master;
 	struct mt7621_spi *rs;
 	void __iomem *base;
 	struct clk *clk;
 	int ret;
-
-	match = of_match_device(mt7621_spi_match, &pdev->dev);
-	if (!match)
-		return -EINVAL;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

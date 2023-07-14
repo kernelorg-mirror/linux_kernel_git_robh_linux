@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/genalloc.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 
 #include "dmaengine.h"
@@ -637,16 +636,14 @@ MODULE_DEVICE_TABLE(of, mmp_tdma_dt_ids);
 static int mmp_tdma_probe(struct platform_device *pdev)
 {
 	enum mmp_tdma_type type;
-	const struct of_device_id *of_id;
 	struct mmp_tdma_device *tdev;
 	int i, ret;
 	int irq = 0, irq_num = 0;
 	int chan_num = TDMA_CHANNEL_NUM;
 	struct gen_pool *pool = NULL;
 
-	of_id = of_match_device(mmp_tdma_dt_ids, &pdev->dev);
-	if (of_id)
-		type = (enum mmp_tdma_type) of_id->data;
+	if (pdev->dev.of_node)
+		type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 	else
 		type = platform_get_device_id(pdev)->driver_data;
 

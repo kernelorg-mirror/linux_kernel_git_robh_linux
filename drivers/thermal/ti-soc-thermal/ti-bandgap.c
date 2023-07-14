@@ -818,7 +818,6 @@ static const struct of_device_id of_ti_bandgap_match[];
 static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	const struct of_device_id *of_id;
 	struct ti_bandgap *bgp;
 	struct resource *res;
 	int i;
@@ -833,9 +832,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	if (!bgp)
 		return ERR_PTR(-ENOMEM);
 
-	of_id = of_match_device(of_ti_bandgap_match, &pdev->dev);
-	if (of_id)
-		bgp->conf = of_id->data;
+	bgp->conf = of_device_get_match_data(&pdev->dev);
 
 	/* register shadow for context save and restore */
 	bgp->regval = devm_kcalloc(&pdev->dev, bgp->conf->sensor_count,

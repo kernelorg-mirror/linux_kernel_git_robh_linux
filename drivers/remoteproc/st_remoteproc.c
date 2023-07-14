@@ -341,7 +341,6 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 static int st_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct st_rproc *ddata;
 	struct device_node *np = dev->of_node;
 	struct rproc *rproc;
@@ -349,19 +348,15 @@ static int st_rproc_probe(struct platform_device *pdev)
 	int enabled;
 	int ret, i;
 
-	match = of_match_device(st_rproc_match, dev);
-	if (!match || !match->data) {
-		dev_err(dev, "No device match found\n");
-		return -ENODEV;
-	}
-
 	rproc = rproc_alloc(dev, np->name, &st_rproc_ops, NULL, sizeof(*ddata));
 	if (!rproc)
 		return -ENOMEM;
 
 	rproc->has_iommu = false;
 	ddata = rproc->priv;
-	ddata->config = (struct st_rproc_config *)match->data;
+	ddata->config = (struct st_rproc_config *)of_device_get_match_data(dev);
+	if (!ddata->config)
+		goto free_rproc;
 
 	platform_set_drvdata(pdev, rproc);
 

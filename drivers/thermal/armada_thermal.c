@@ -829,14 +829,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *tz;
 	struct armada_thermal_sensor *sensor;
 	struct armada_drvdata *drvdata;
-	const struct of_device_id *match;
 	struct armada_thermal_priv *priv;
 	int sensor_id, irq;
 	int ret;
-
-	match = of_match_device(armada_thermal_id_table, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -847,7 +842,7 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->dev = &pdev->dev;
-	priv->data = (struct armada_thermal_data *)match->data;
+	priv->data = (struct armada_thermal_data *)of_device_get_match_data(&pdev->dev);
 
 	mutex_init(&priv->update_lock);
 

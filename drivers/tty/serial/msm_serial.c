@@ -1775,20 +1775,11 @@ static struct uart_driver msm_uart_driver = {
 
 static atomic_t msm_uart_next_id = ATOMIC_INIT(0);
 
-static const struct of_device_id msm_uartdm_table[] = {
-	{ .compatible = "qcom,msm-uartdm-v1.1", .data = (void *)UARTDM_1P1 },
-	{ .compatible = "qcom,msm-uartdm-v1.2", .data = (void *)UARTDM_1P2 },
-	{ .compatible = "qcom,msm-uartdm-v1.3", .data = (void *)UARTDM_1P3 },
-	{ .compatible = "qcom,msm-uartdm-v1.4", .data = (void *)UARTDM_1P4 },
-	{ }
-};
-
 static int msm_serial_probe(struct platform_device *pdev)
 {
 	struct msm_port *msm_port;
 	struct resource *resource;
 	struct uart_port *port;
-	const struct of_device_id *id;
 	int irq, line;
 
 	if (pdev->dev.of_node)
@@ -1808,11 +1799,7 @@ static int msm_serial_probe(struct platform_device *pdev)
 	port->dev = &pdev->dev;
 	msm_port = to_msm_port(port);
 
-	id = of_match_device(msm_uartdm_table, &pdev->dev);
-	if (id)
-		msm_port->is_uartdm = (unsigned long)id->data;
-	else
-		msm_port->is_uartdm = 0;
+	msm_port->is_uartdm = (unsigned long)of_device_get_match_data(&pdev->dev);
 
 	msm_port->clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(msm_port->clk))
@@ -1854,7 +1841,10 @@ static int msm_serial_remove(struct platform_device *pdev)
 
 static const struct of_device_id msm_match_table[] = {
 	{ .compatible = "qcom,msm-uart" },
-	{ .compatible = "qcom,msm-uartdm" },
+	{ .compatible = "qcom,msm-uartdm-v1.1", .data = (void *)UARTDM_1P1 },
+	{ .compatible = "qcom,msm-uartdm-v1.2", .data = (void *)UARTDM_1P2 },
+	{ .compatible = "qcom,msm-uartdm-v1.3", .data = (void *)UARTDM_1P3 },
+	{ .compatible = "qcom,msm-uartdm-v1.4", .data = (void *)UARTDM_1P4 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, msm_match_table);

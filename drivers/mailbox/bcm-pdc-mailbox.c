@@ -1494,7 +1494,6 @@ static int pdc_dt_read(struct platform_device *pdev, struct pdc_state *pdcs)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = pdev->dev.of_node;
-	const struct of_device_id *match;
 	const int *hw_type;
 	int err;
 
@@ -1509,11 +1508,9 @@ static int pdc_dt_read(struct platform_device *pdev, struct pdc_state *pdcs)
 
 	pdcs->hw_type = PDC_HW;
 
-	match = of_match_device(of_match_ptr(pdc_mbox_of_match), dev);
-	if (match != NULL) {
-		hw_type = match->data;
+	hw_type = of_device_get_match_data(dev);
+	if (hw_type)
 		pdcs->hw_type = *hw_type;
-	}
 
 	return 0;
 }

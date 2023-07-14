@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
@@ -22,18 +21,16 @@ static int wm831x_spi_probe(struct spi_device *spi)
 {
 	struct wm831x_pdata *pdata = dev_get_platdata(&spi->dev);
 	const struct spi_device_id *id = spi_get_device_id(spi);
-	const struct of_device_id *of_id;
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
 	int ret;
 
 	if (spi->dev.of_node) {
-		of_id = of_match_device(wm831x_of_match, &spi->dev);
-		if (!of_id) {
+		type = (uintptr_t)of_device_get_match_data(&spi->dev);
+		if (!type) {
 			dev_err(&spi->dev, "Failed to match device\n");
 			return -ENODEV;
 		}
-		type = (enum wm831x_parent)of_id->data;
 	} else {
 		type = (enum wm831x_parent)id->driver_data;
 	}

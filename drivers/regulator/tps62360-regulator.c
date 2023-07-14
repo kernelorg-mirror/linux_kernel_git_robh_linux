@@ -341,14 +341,7 @@ static int tps62360_probe(struct i2c_client *client)
 	tps->desc.uV_step = 10000;
 
 	if (client->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_device(of_match_ptr(tps62360_of_match),
-				&client->dev);
-		if (!match) {
-			dev_err(&client->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
-		chip_id = (int)(long)match->data;
+		chip_id = (long)of_device_get_match_data(&client->dev);
 		if (!pdata)
 			pdata = of_get_tps62360_platform_data(&client->dev,
 							      &tps->desc);

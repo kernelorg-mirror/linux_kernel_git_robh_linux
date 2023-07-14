@@ -7,7 +7,7 @@
 #include <linux/interrupt.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/reset.h>
@@ -1094,7 +1094,6 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	const struct of_device_id *of_id = NULL;
 	struct net_device *ndev;
 	struct hix5hd2_priv *priv;
 	struct mii_bus *bus;
@@ -1110,12 +1109,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	of_id = of_match_device(hix5hd2_of_match, dev);
-	if (!of_id) {
-		ret = -EINVAL;
-		goto out_free_netdev;
-	}
-	priv->hw_cap = (unsigned long)of_id->data;
+	priv->hw_cap = (unsigned long)of_device_get_match_data(dev);
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {

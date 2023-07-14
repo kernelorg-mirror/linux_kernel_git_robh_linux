@@ -15,8 +15,9 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/soc/ti/knav_qmss.h>
@@ -1754,7 +1755,6 @@ static int knav_queue_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *qmgrs, *queue_pools, *regions, *pdsps;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	u32 temp[2];
 	int ret;
@@ -1770,8 +1770,7 @@ static int knav_queue_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	match = of_match_device(of_match_ptr(keystone_qmss_of_match), dev);
-	if (match && match->data)
+	if (of_device_get_match_data(dev))
 		kdev->version = QMSS_66AK2G;
 
 	platform_set_drvdata(pdev, kdev);

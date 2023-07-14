@@ -1252,10 +1252,8 @@ static int i2c_pxa_probe_dt(struct platform_device *pdev, struct pxa_i2c *i2c,
 			    enum pxa_i2c_types *i2c_types)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *of_id =
-			of_match_device(i2c_pxa_dt_ids, &pdev->dev);
 
-	if (!of_id)
+	if (!pdev->dev.of_node)
 		return 1;
 
 	/* For device tree we always use the dynamic or alias-assigned ID */
@@ -1264,7 +1262,7 @@ static int i2c_pxa_probe_dt(struct platform_device *pdev, struct pxa_i2c *i2c,
 	i2c->use_pio = of_property_read_bool(np, "mrvl,i2c-polling");
 	i2c->fast_mode = of_property_read_bool(np, "mrvl,i2c-fast-mode");
 
-	*i2c_types = (enum pxa_i2c_types)(of_id->data);
+	*i2c_types = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	return 0;
 }

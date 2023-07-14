@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "tpm.h"
 
 /* I2C interface offsets */
@@ -547,10 +547,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	if (dev->of_node) {
-		const struct of_device_id *of_id;
-
-		of_id = of_match_device(dev->driver->of_match_table, dev);
-		if (of_id && of_id->data == OF_IS_TPM2)
+		if (of_device_get_match_data(dev) == OF_IS_TPM2)
 			chip->flags |= TPM_CHIP_FLAG_TPM2;
 	} else
 		if (id->driver_data == I2C_IS_TPM2)

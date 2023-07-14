@@ -84,17 +84,12 @@
 #include <linux/sysctl.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-
-#ifdef CONFIG_OF
-/* For open firmware. */
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
-#endif
 
 #include "xilinx_hwicap.h"
 #include "buffer_icap.h"
@@ -769,17 +764,14 @@ static inline int hwicap_of_probe(struct platform_device *op,
 }
 #endif /* CONFIG_OF */
 
-static const struct of_device_id hwicap_of_match[];
 static int hwicap_drv_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct resource *res;
 	const struct config_registers *regs;
 	const char *family;
 
-	match = of_match_device(hwicap_of_match, &pdev->dev);
-	if (match)
-		return hwicap_of_probe(pdev, match->data);
+	if (pdev->dev.of_node)
+		return hwicap_of_probe(pdev, of_device_get_match_data(&pdev->dev));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)

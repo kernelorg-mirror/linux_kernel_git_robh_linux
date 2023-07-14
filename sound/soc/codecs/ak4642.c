@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
@@ -628,7 +628,6 @@ static struct clk *ak4642_of_parse_mcko(struct device *dev)
 #define ak4642_of_parse_mcko(d) 0
 #endif
 
-static const struct of_device_id ak4642_of_match[];
 static const struct i2c_device_id ak4642_i2c_id[];
 static int ak4642_i2c_probe(struct i2c_client *i2c)
 {
@@ -640,15 +639,11 @@ static int ak4642_i2c_probe(struct i2c_client *i2c)
 	struct clk *mcko = NULL;
 
 	if (np) {
-		const struct of_device_id *of_id;
-
 		mcko = ak4642_of_parse_mcko(dev);
 		if (IS_ERR(mcko))
 			mcko = NULL;
 
-		of_id = of_match_device(ak4642_of_match, dev);
-		if (of_id)
-			drvdata = of_id->data;
+		drvdata = of_device_get_match_data(dev);
 	} else {
 		const struct i2c_device_id *id =
 			i2c_match_id(ak4642_i2c_id, i2c);

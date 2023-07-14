@@ -5,7 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/usb/of.h>
 
 #include "core.h"
@@ -938,15 +938,13 @@ typedef void (*set_params_cb)(struct dwc2_hsotg *data);
 
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
-	const struct of_device_id *match;
 	set_params_cb set_params;
 
 	dwc2_set_default_params(hsotg);
 	dwc2_get_device_properties(hsotg);
 
-	match = of_match_device(dwc2_of_match_table, hsotg->dev);
-	if (match && match->data) {
-		set_params = match->data;
+	set_params = of_device_get_match_data(hsotg->dev);
+	if (set_params) {
 		set_params(hsotg);
 	} else {
 		const struct acpi_device_id *amatch;

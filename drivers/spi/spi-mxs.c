@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -525,8 +524,6 @@ MODULE_DEVICE_TABLE(of, mxs_spi_dt_ids);
 
 static int mxs_spi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(mxs_spi_dt_ids, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct spi_master *master;
 	struct mxs_spi *spi;
@@ -555,7 +552,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	devid = (enum mxs_ssp_id) of_id->data;
+	devid = (enum mxs_ssp_id) of_device_get_match_data(&pdev->dev);
 	ret = of_property_read_u32(np, "clock-frequency",
 				   &clk_freq);
 	if (ret)

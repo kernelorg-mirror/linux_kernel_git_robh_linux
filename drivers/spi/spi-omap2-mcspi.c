@@ -1427,7 +1427,6 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	int			status = 0, i;
 	u32			regs_offset = 0;
 	struct device_node	*node = pdev->dev.of_node;
-	const struct of_device_id *match;
 
 	if (of_property_read_bool(node, "spi-slave"))
 		master = spi_alloc_slave(&pdev->dev, sizeof(*mcspi));
@@ -1457,10 +1456,9 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	mcspi = spi_master_get_devdata(master);
 	mcspi->master = master;
 
-	match = of_match_device(omap_mcspi_of_match, &pdev->dev);
-	if (match) {
+	pdata = of_device_get_match_data(&pdev->dev);
+	if (pdata) {
 		u32 num_cs = 1; /* default number of chipselect */
-		pdata = match->data;
 
 		of_property_read_u32(node, "ti,spi-num-cs", &num_cs);
 		master->num_chipselect = num_cs;

@@ -25,7 +25,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/platform_data/i2c-omap.h>
 #include <linux/pm_runtime.h>
@@ -1358,7 +1357,6 @@ omap_i2c_probe(struct platform_device *pdev)
 	const struct omap_i2c_bus_platform_data *pdata =
 		dev_get_platdata(&pdev->dev);
 	struct device_node	*node = pdev->dev.of_node;
-	const struct of_device_id *match;
 	int irq;
 	int r;
 	u32 rev;
@@ -1376,11 +1374,10 @@ omap_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(omap->base))
 		return PTR_ERR(omap->base);
 
-	match = of_match_device(of_match_ptr(omap_i2c_of_match), &pdev->dev);
-	if (match) {
+	if (pdev->dev.of_node) {
 		u32 freq = I2C_MAX_STANDARD_MODE_FREQ;
 
-		pdata = match->data;
+		pdata = of_device_get_match_data(&pdev->dev);
 		omap->flags = pdata->flags;
 
 		of_property_read_u32(node, "clock-frequency", &freq);

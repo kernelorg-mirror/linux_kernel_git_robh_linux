@@ -10,7 +10,9 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -102,8 +104,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, &priv->common);
 
-	cfg = (const struct stm32_dac_cfg *)
-		of_match_device(dev->driver->of_match_table, dev)->data;
+	cfg = of_device_get_match_data(dev);
 
 	mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmio))

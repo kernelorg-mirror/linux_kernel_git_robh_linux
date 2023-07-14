@@ -689,7 +689,6 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 	struct pfuze_chip *pfuze_chip;
 	struct regulator_config config = { };
 	int i, ret;
-	const struct of_device_id *match;
 	u32 regulator_num;
 	u32 sw_check_start, sw_check_end, sw_hi = 0x40;
 
@@ -699,13 +698,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	if (client->dev.of_node) {
-		match = of_match_device(of_match_ptr(pfuze_dt_ids),
-				&client->dev);
-		if (!match) {
-			dev_err(&client->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
-		pfuze_chip->chip_id = (int)(long)match->data;
+		pfuze_chip->chip_id = (int)(long)of_device_get_match_data(&client->dev);
 	} else if (id) {
 		pfuze_chip->chip_id = id->driver_data;
 	} else {

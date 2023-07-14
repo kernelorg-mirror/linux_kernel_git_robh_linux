@@ -18,7 +18,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -511,23 +510,19 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 
 static const struct at24_chip_data *at24_get_chip_data(struct device *dev)
 {
-	struct device_node *of_node = dev->of_node;
-	const struct at24_chip_data *cdata;
-	const struct i2c_device_id *id;
-
-	id = i2c_match_id(at24_ids, to_i2c_client(dev));
+	const struct at24_chip_data *cdata = device_get_match_data(dev);
 
 	/*
 	 * The I2C core allows OF nodes compatibles to match against the
 	 * I2C device ID table as a fallback, so check not only if an OF
 	 * node is present but also if it matches an OF device ID entry.
 	 */
-	if (of_node && of_match_device(at24_of_match, dev))
-		cdata = of_device_get_match_data(dev);
-	else if (id)
+	if (!cdata) {
+		const struct i2c_device_id *id;
+
+		id = i2c_match_id(at24_ids, to_i2c_client(dev));
 		cdata = (void *)id->driver_data;
-	else
-		cdata = acpi_device_get_match_data(dev);
+	}
 
 	if (!cdata)
 		return ERR_PTR(-ENODEV);

@@ -22,7 +22,7 @@
 #include <linux/mfd/axp20x.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -1132,15 +1132,9 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 {
 	struct device *dev = axp20x->dev;
 	const struct acpi_device_id *acpi_id;
-	const struct of_device_id *of_id;
 
 	if (dev->of_node) {
-		of_id = of_match_device(dev->driver->of_match_table, dev);
-		if (!of_id) {
-			dev_err(dev, "Unable to match OF ID\n");
-			return -ENODEV;
-		}
-		axp20x->variant = (long)of_id->data;
+		axp20x->variant = (long)of_device_get_match_data(dev);
 	} else {
 		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
 		if (!acpi_id || !acpi_id->driver_data) {

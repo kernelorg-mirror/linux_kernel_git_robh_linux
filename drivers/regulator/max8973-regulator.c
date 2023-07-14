@@ -626,17 +626,10 @@ static int max8973_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (client->dev.of_node) {
-		const struct of_device_id *match;
-
-		match = of_match_device(of_match_ptr(of_max8973_match_tbl),
-				&client->dev);
-		if (!match)
-			return -ENODATA;
-		max->id = (u32)((uintptr_t)match->data);
-	} else {
+	if (client->dev.of_node)
+		max->id = (uintptr_t)of_device_get_match_data(&client->dev);
+	else
 		max->id = id->driver_data;
-	}
 
 	ret = regmap_read(max->regmap, MAX8973_CHIPID1, &chip_id);
 	if (ret < 0) {

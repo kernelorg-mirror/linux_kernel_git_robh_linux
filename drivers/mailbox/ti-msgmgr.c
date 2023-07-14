@@ -810,7 +810,6 @@ MODULE_DEVICE_TABLE(of, ti_msgmgr_of_match);
 static int ti_msgmgr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct device_node *np;
 	struct resource *res;
 	const struct ti_msgmgr_desc *desc;
@@ -829,19 +828,12 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	}
 	np = dev->of_node;
 
-	of_id = of_match_device(ti_msgmgr_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "OF data missing\n");
-		return -EINVAL;
-	}
-	desc = of_id->data;
-
 	inst = devm_kzalloc(dev, sizeof(*inst), GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
 	inst->dev = dev;
-	inst->desc = desc;
+	inst->desc = desc = of_device_get_match_data(dev);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   desc->data_region_name);

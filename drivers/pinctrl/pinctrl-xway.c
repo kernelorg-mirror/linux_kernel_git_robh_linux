@@ -11,8 +11,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/device.h>
@@ -1451,7 +1450,6 @@ MODULE_DEVICE_TABLE(of, xway_match);
 
 static int pinmux_xway_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const struct pinctrl_xway_soc *xway_soc;
 	int ret, i;
 
@@ -1460,10 +1458,8 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	if (IS_ERR(xway_info.membase[0]))
 		return PTR_ERR(xway_info.membase[0]);
 
-	match = of_match_device(xway_match, &pdev->dev);
-	if (match)
-		xway_soc = (const struct pinctrl_xway_soc *) match->data;
-	else
+	xway_soc = of_device_get_match_data(&pdev->dev);
+	if (!xway_soc)
 		xway_soc = &danube_pinctrl;
 
 	/* find out how many pads we have */

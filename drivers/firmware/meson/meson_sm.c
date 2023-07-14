@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/types.h>
@@ -291,7 +291,7 @@ static int __init meson_sm_probe(struct platform_device *pdev)
 	if (!fw)
 		return -ENOMEM;
 
-	chip = of_match_device(meson_sm_ids, dev)->data;
+	chip = of_device_get_match_data(dev);
 
 	if (chip->cmd_shmem_in_base) {
 		fw->sm_shmem_in_base = meson_sm_map_shmem(chip->cmd_shmem_in_base,

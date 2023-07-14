@@ -21,7 +21,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <video/of_videomode.h>
 #include <video/of_display_timing.h>
 #include <linux/regulator/consumer.h>
@@ -56,7 +55,7 @@ struct atmel_lcdfb_info {
 
 	struct atmel_lcdfb_pdata pdata;
 
-	struct atmel_lcdfb_config *config;
+	const struct atmel_lcdfb_config *config;
 	struct regulator	*reg_lcd;
 };
 
@@ -74,27 +73,27 @@ struct atmel_lcdfb_power_ctrl_gpio {
 #define ATMEL_LCDC_DMA_BURST_LEN	8	/* words */
 #define ATMEL_LCDC_FIFO_SIZE		512	/* words */
 
-static struct atmel_lcdfb_config at91sam9261_config = {
+static const struct atmel_lcdfb_config at91sam9261_config = {
 	.have_hozval		= true,
 	.have_intensity_bit	= true,
 };
 
-static struct atmel_lcdfb_config at91sam9263_config = {
+static const struct atmel_lcdfb_config at91sam9263_config = {
 	.have_intensity_bit	= true,
 };
 
-static struct atmel_lcdfb_config at91sam9g10_config = {
+static const struct atmel_lcdfb_config at91sam9g10_config = {
 	.have_hozval		= true,
 };
 
-static struct atmel_lcdfb_config at91sam9g45_config = {
+static const struct atmel_lcdfb_config at91sam9g45_config = {
 	.have_alt_pixclock	= true,
 };
 
-static struct atmel_lcdfb_config at91sam9g45es_config = {
+static const struct atmel_lcdfb_config at91sam9g45es_config = {
 };
 
-static struct atmel_lcdfb_config at91sam9rl_config = {
+static const struct atmel_lcdfb_config at91sam9rl_config = {
 	.have_intensity_bit	= true,
 };
 
@@ -933,8 +932,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	int ret;
 	int i;
 
-	sinfo->config = (struct atmel_lcdfb_config*)
-		of_match_device(atmel_lcdfb_dt_ids, dev)->data;
+	sinfo->config = of_device_get_match_data(dev);
 
 	display_np = of_parse_phandle(np, "display", 0);
 	if (!display_np) {

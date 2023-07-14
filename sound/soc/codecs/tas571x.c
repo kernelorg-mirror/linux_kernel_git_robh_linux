@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/stddef.h>
@@ -836,7 +836,6 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 {
 	struct tas571x_private *priv;
 	struct device *dev = &client->dev;
-	const struct of_device_id *of_id;
 	int i, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -844,9 +843,8 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 		return -ENOMEM;
 	i2c_set_clientdata(client, priv);
 
-	of_id = of_match_device(tas571x_of_match, dev);
-	if (of_id)
-		priv->chip = of_id->data;
+	if (dev->of_node)
+		priv->chip = of_device_get_match_data(dev);
 	else {
 		const struct i2c_device_id *id =
 			i2c_match_id(tas571x_i2c_id, client);

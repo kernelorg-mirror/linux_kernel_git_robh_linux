@@ -163,7 +163,6 @@ MODULE_DEVICE_TABLE(of, bcm2835_thermal_of_match_table);
 
 static int bcm2835_thermal_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct thermal_zone_device *tz;
 	struct bcm2835_thermal_data *data;
 	int err = 0;
@@ -173,11 +172,6 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
-	match = of_match_device(bcm2835_thermal_of_match_table,
-				&pdev->dev);
-	if (!match)
-		return -EINVAL;
 
 	data->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(data->regs)) {

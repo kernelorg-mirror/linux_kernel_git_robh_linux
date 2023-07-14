@@ -11,7 +11,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -95,7 +95,7 @@ static int ingenic_rng_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 	}
 
-	priv->version = (enum ingenic_rng_version)of_device_get_match_data(&pdev->dev);
+	priv->version = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	priv->rng.name = pdev->name;
 	priv->rng.init = ingenic_rng_init;

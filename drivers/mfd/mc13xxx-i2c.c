@@ -10,7 +10,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/mc13xxx.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
 
@@ -73,13 +72,10 @@ static int mc13xxx_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (client->dev.of_node) {
-		const struct of_device_id *of_id =
-			of_match_device(mc13xxx_dt_ids, &client->dev);
-		mc13xxx->variant = of_id->data;
-	} else {
+	if (client->dev.of_node)
+		mc13xxx->variant = of_device_get_match_data(&client->dev);
+	else
 		mc13xxx->variant = (void *)id->driver_data;
-	}
 
 	return mc13xxx_common_init(&client->dev);
 }

@@ -373,23 +373,15 @@ static int ti_opp_supply_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device *cpu_dev = get_cpu_device(0);
-	const struct of_device_id *match;
 	const struct ti_opp_supply_of_data *of_data;
 	int ret = 0;
 
-	match = of_match_device(ti_opp_supply_of_match, dev);
-	if (!match) {
-		/* We do not expect this to happen */
-		dev_err(dev, "%s: Unable to match device\n", __func__);
-		return -ENODEV;
-	}
-	if (!match->data) {
+	of_data = of_device_get_match_data(dev);
+	if (!of_data) {
 		/* Again, unlikely.. but mistakes do happen */
 		dev_err(dev, "%s: Bad data in match\n", __func__);
 		return -EINVAL;
 	}
-	of_data = match->data;
-
 	dev_set_drvdata(dev, (void *)of_data);
 
 	/* If we need optimized voltage */

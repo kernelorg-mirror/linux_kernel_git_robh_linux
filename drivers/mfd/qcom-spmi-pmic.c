@@ -8,10 +8,12 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/spmi.h>
 #include <linux/types.h>
 #include <linux/regmap.h>
-#include <linux/of_platform.h>
 #include <soc/qcom/qcom-spmi-pmic.h>
 
 #define PMIC_REV2		0x101

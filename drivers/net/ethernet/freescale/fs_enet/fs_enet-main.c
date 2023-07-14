@@ -37,8 +37,6 @@
 #include <linux/phy.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
-#include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/of_net.h>
 #include <linux/pgtable.h>
 
@@ -905,10 +903,9 @@ static const struct net_device_ops fs_enet_netdev_ops = {
 #endif
 };
 
-static const struct of_device_id fs_enet_match[];
 static int fs_enet_probe(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
+	const struct fs_ops *ops;
 	struct net_device *ndev;
 	struct fs_enet_private *fep;
 	struct fs_platform_info *fpi;
@@ -918,8 +915,8 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	const char *phy_connection_type;
 	int privsize, len, ret = -ENODEV;
 
-	match = of_match_device(fs_enet_match, &ofdev->dev);
-	if (!match)
+	ops = of_device_get_match_data(&ofdev->dev);
+	if (!ops)
 		return -EINVAL;
 
 	fpi = kzalloc(sizeof(*fpi), GFP_KERNEL);
@@ -988,7 +985,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	fep->dev = &ofdev->dev;
 	fep->ndev = ndev;
 	fep->fpi = fpi;
-	fep->ops = match->data;
+	fep->ops = ops;
 
 	ret = fep->ops->setup_data(ndev);
 	if (ret)

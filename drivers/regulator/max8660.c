@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 #include <linux/regulator/max8660.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regulator/of_regulator.h>
 
 #define MAX8660_DCDC_MIN_UV	 725000
@@ -307,7 +306,6 @@ enum {
 	MAX8661 = 1,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id max8660_dt_ids[] = {
 	{ .compatible = "maxim,max8660", .data = (void *) MAX8660 },
 	{ .compatible = "maxim,max8661", .data = (void *) MAX8661 },
@@ -358,14 +356,6 @@ static int max8660_pdata_from_dt(struct device *dev,
 
 	return 0;
 }
-#else
-static inline int max8660_pdata_from_dt(struct device *dev,
-					struct device_node **of_node,
-					struct max8660_platform_data *pdata)
-{
-	return 0;
-}
-#endif
 
 static int max8660_probe(struct i2c_client *client)
 {
@@ -379,18 +369,12 @@ static int max8660_probe(struct i2c_client *client)
 	unsigned long type;
 
 	if (dev->of_node && !pdata) {
-		const struct of_device_id *id;
-
-		id = of_match_device(of_match_ptr(max8660_dt_ids), dev);
-		if (!id)
-			return -ENODEV;
-
 		ret = max8660_pdata_from_dt(dev, of_node, &pdata_of);
 		if (ret < 0)
 			return ret;
 
 		pdata = &pdata_of;
-		type = (unsigned long) id->data;
+		type = (unsigned long)of_device_get_match_data(dev);
 	} else {
 		type = i2c_id->driver_data;
 		memset(of_node, 0, sizeof(of_node));
@@ -506,6 +490,7 @@ static struct i2c_driver max8660_driver = {
 	.probe = max8660_probe,
 	.driver		= {
 		.name	= "max8660",
+		.of_match_table = max8660_dt_ids,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table	= max8660_id,

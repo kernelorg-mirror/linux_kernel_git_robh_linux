@@ -582,7 +582,8 @@ static int hx8357_probe(struct spi_device *spi)
 {
 	struct lcd_device *lcdev;
 	struct hx8357_data *lcd;
-	const struct of_device_id *match;
+	int (*panel_init_f)(struct lcd_device *);
+
 	int i, ret;
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
@@ -597,8 +598,8 @@ static int hx8357_probe(struct spi_device *spi)
 
 	lcd->spi = spi;
 
-	match = of_match_device(hx8357_dt_ids, &spi->dev);
-	if (!match || !match->data)
+	panel_init_f = of_device_get_match_data(&spi->dev);
+	if (!panel_init_f)
 		return -EINVAL;
 
 	lcd->reset = of_get_named_gpio(spi->dev.of_node, "gpios-reset", 0);
@@ -655,7 +656,7 @@ static int hx8357_probe(struct spi_device *spi)
 
 	hx8357_lcd_reset(lcdev);
 
-	ret = ((int (*)(struct lcd_device *))match->data)(lcdev);
+	ret = panel_init_f(lcdev);
 	if (ret) {
 		dev_err(&spi->dev, "Couldn't initialize panel\n");
 		return ret;

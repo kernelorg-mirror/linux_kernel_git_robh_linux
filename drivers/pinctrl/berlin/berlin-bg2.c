@@ -8,7 +8,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -227,10 +227,7 @@ static const struct of_device_id berlin2_pinctrl_match[] = {
 
 static int berlin2_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match =
-		of_match_device(berlin2_pinctrl_match, &pdev->dev);
-
-	return berlin_pinctrl_probe(pdev, match->data);
+	return berlin_pinctrl_probe(pdev, of_device_get_match_data(&pdev->dev));
 }
 
 static struct platform_driver berlin2_pinctrl_driver = {
