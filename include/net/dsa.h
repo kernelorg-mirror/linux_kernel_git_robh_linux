@@ -148,12 +148,6 @@ struct dsa_switch_tree {
 	/* Has this tree been applied to the hardware? */
 	bool setup;
 
-	/*
-	 * Configuration data for the platform device that owns
-	 * this dsa switch tree instance.
-	 */
-	struct dsa_platform_data	*pd;
-
 	/* List of DSA links composing the routing table */
 	struct list_head rtable;
 
