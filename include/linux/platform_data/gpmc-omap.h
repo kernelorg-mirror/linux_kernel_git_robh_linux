@@ -159,19 +159,4 @@ struct gpmc_settings {
 	u32 wait_pin_polarity;
 };
 
-/* Data for each chip select */
-struct gpmc_omap_cs_data {
-	bool valid;			/* data is valid */
-	bool is_nand;			/* device within this CS is NAND */
-	struct gpmc_settings *settings;
-	struct gpmc_device_timings *device_timings;
-	struct gpmc_timings *gpmc_timings;
-	struct platform_device *pdev;	/* device within this CS region */
-	unsigned int pdata_size;
-};
-
-struct gpmc_omap_platform_data {
-	struct gpmc_omap_cs_data cs[GPMC_CS_NUM];
-};
-
 #endif /* _GPMC_OMAP_H */

@@ -977,20 +977,6 @@ struct v4l2_subdev_internal_ops {
 struct regulator_bulk_data;
 
 /**
- * struct v4l2_subdev_platform_data - regulators config struct
- *
- * @regulators: Optional regulators used to power on/off the subdevice
- * @num_regulators: Number of regululators
- * @host_priv: Per-subdevice data, specific for a certain video host device
- */
-struct v4l2_subdev_platform_data {
-	struct regulator_bulk_data *regulators;
-	int num_regulators;
-
-	void *host_priv;
-};
-
-/**
  * struct v4l2_subdev - describes a V4L2 sub-device
  *
  * @entity: pointer to &struct media_entity
@@ -1026,7 +1012,6 @@ struct v4l2_subdev_platform_data {
  * @notifier: Pointer to the managing notifier.
  * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
  *		     device using v4l2_async_register_subdev_sensor().
- * @pdata: common part of subdevice platform data
  * @state_lock: A pointer to a lock used for all the subdev's states, set by the
  *		driver. This is	optional. If NULL, each state instance will get
  *		a lock of its own.
@@ -1068,7 +1053,6 @@ struct v4l2_subdev {
 	struct v4l2_async_subdev *asd;
 	struct v4l2_async_notifier *notifier;
 	struct v4l2_async_notifier *subdev_notifier;
-	struct v4l2_subdev_platform_data *pdata;
 	struct mutex *state_lock;
 
 	/*
