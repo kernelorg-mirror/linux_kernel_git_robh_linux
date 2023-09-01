@@ -246,22 +246,6 @@ struct lp8788_led_platform_data {
 };
 
 /*
- * struct lp8788_vib_platform_data
- * @name         : vibrator driver name
- * @scale        : current scale
- * @num          : current sink number
- * @iout_code    : current output value (Addr 9Ah ~ 9Bh)
- * @pwm_code     : PWM code value (Addr 9Ch ~ 9Eh)
- */
-struct lp8788_vib_platform_data {
-	char *name;
-	enum lp8788_isink_scale scale;
-	enum lp8788_isink_number num;
-	int iout_code;
-	int pwm_code;
-};
-
-/*
  * struct lp8788_platform_data
  * @init_func    : used for initializing registers
  *                 before mfd driver is registered
@@ -299,7 +283,6 @@ struct lp8788_platform_data {
 
 	/* current sinks */
 	struct lp8788_led_platform_data *led_pdata;
-	struct lp8788_vib_platform_data *vib_pdata;
 
 	/* adc iio map data */
 	struct iio_map *adc_pdata;
