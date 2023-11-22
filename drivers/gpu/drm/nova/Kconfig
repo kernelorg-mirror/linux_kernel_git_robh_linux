@@ -1,0 +1,5 @@
+config DRM_NOVA_STUB
+	tristate "Nova GPU driver stub"
+	depends on DRM
+	depends on PCI
+	depends on RUST
