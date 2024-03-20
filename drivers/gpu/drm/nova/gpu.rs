@@ -8,10 +8,12 @@ use kernel::{
     firmware, fmt, pci,
     prelude::*,
     str::CString,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use core::fmt::Debug;
+
+use crate::bios::*;
 
 /// Enum representing the GPU chipset.
 #[derive(Debug)]
@@ -71,6 +73,8 @@ pub(crate) struct Gpu {
     /// MMIO mapping of PCI BAR 0
     bar: Devres<pci::Bar>,
     fw: Firmware,
+    #[pin]
+    bios: Mutex<Bios>,
 }
 
 // TODO replace with something like derive(FromPrimitive)
@@ -174,6 +178,23 @@ impl Gpu {
             spec.boot0
         );
 
-        Arc::pin_init(try_pin_init!(Self { spec, bar, fw }), GFP_KERNEL)
+        Arc::pin_init(
+            try_pin_init!(Self {
+                spec,
+                bar,
+                fw,
+                bios <- kernel::new_mutex!(Bios::new()),
+            }),
+            GFP_KERNEL,
+        )
+    }
+
+    pub(crate) fn init(&self) -> Result {
+        let mut bios = self.bios.lock();
+
+        bios.probe(&self.bar)?;
+        bios.find_fwsec()?;
+
+        Ok(())
     }
 }

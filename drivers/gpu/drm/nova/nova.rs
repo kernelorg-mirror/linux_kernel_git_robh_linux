@@ -2,8 +2,10 @@
 
 //! Nova GPU Driver
 
+mod bios;
 mod driver;
 mod file;
+mod fwsec;
 mod gem;
 mod gpu;
 

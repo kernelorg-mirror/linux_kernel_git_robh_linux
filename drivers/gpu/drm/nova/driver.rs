@@ -54,6 +54,7 @@ impl pci::Driver for NovaDriver {
         let bar = pdev.iomap_region(0, c_str!("nova"))?;
 
         let gpu = Gpu::new(pdev, bar)?;
+        gpu.init()?;
 
         let data = kernel::new_device_data!(
             reg,
