@@ -2,11 +2,13 @@
 
 //! Allocator support.
 
-use super::{flags::*, Flags};
-use core::alloc::{GlobalAlloc, Layout};
+use super::{flags::*, AllocatorWithFlags, Flags};
+use core::alloc::{AllocError, Allocator, GlobalAlloc, Layout};
 use core::ptr;
+use core::ptr::NonNull;
 
-struct KernelAllocator;
+/// The kernel default allocator.
+pub struct KernelAllocator;
 
 pub(crate) fn aligned_size(new_layout: Layout) -> usize {
     // Customized layouts from `Layout::from_size_align()` can have size < align, so pad first.
@@ -84,6 +86,42 @@ unsafe impl GlobalAlloc for KernelAllocator {
         // SAFETY: `ptr::null_mut()` is null and `layout` has a non-zero size by the function safety
         // requirement.
         unsafe { krealloc_aligned(ptr::null_mut(), layout, GFP_KERNEL | __GFP_ZERO) }
+    }
+}
+
+unsafe impl Allocator for KernelAllocator {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        self.default_allocate(layout)
+    }
+
+    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        self.default_allocate_zeroed(layout)
+    }
+
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        unsafe { self.dealloc(ptr.as_ptr(), layout) }
+    }
+}
+
+unsafe impl AllocatorWithFlags for KernelAllocator {
+    fn alloc_flags(&self, layout: Layout, flags: Flags) -> Result<NonNull<[u8]>, AllocError> {
+        unsafe { self.realloc_flags(ptr::null_mut(), 0, layout, flags) }
+    }
+
+    unsafe fn realloc_flags(
+        &self,
+        ptr: *mut u8,
+        _old_size: usize,
+        layout: Layout,
+        flags: Flags,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        let size = aligned_size(layout);
+
+        unsafe {
+            let raw_ptr = krealloc(ptr, size, flags);
+            let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
+            Ok(NonNull::slice_from_raw_parts(ptr, size))
+        }
     }
 }
 
