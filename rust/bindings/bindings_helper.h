@@ -27,6 +27,11 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
+#include <../drivers/gpu/drm/panthor/panthor_device.h>
+#include <../drivers/gpu/drm/panthor/panthor_gem.h>
+#include <../drivers/gpu/drm/panthor/panthor_mmu.h>
+#include <../drivers/gpu/drm/panthor/panthor_sched.h>
+
 /* `bindgen` gets confused at certain things. */
 const size_t RUST_CONST_HELPER_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;
 const gfp_t RUST_CONST_HELPER_GFP_ATOMIC = GFP_ATOMIC;

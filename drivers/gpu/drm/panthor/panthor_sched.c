@@ -794,16 +794,16 @@ panthor_queue_get_syncwait_obj(struct panthor_group *group, struct panthor_queue
 	bo = panthor_vm_get_bo_for_va(group->vm,
 				      queue->syncwait.gpu_va,
 				      &queue->syncwait.offset);
-	if (drm_WARN_ON(&ptdev->base, IS_ERR_OR_NULL(bo)))
+	if (drm_WARN_ON(ptdev->base, IS_ERR_OR_NULL(bo)))
 		goto err_put_syncwait_obj;
 
 	queue->syncwait.obj = &bo->base.base;
 	ret = drm_gem_vmap_unlocked(queue->syncwait.obj, &map);
-	if (drm_WARN_ON(&ptdev->base, ret))
+	if (drm_WARN_ON(ptdev->base, ret))
 		goto err_put_syncwait_obj;
 
 	queue->syncwait.kmap = map.vaddr;
-	if (drm_WARN_ON(&ptdev->base, !queue->syncwait.kmap))
+	if (drm_WARN_ON(ptdev->base, !queue->syncwait.kmap))
 		goto err_put_syncwait_obj;
 
 	return queue->syncwait.kmap + queue->syncwait.offset;
@@ -857,9 +857,9 @@ static void group_release(struct kref *kref)
 						   refcount);
 	struct panthor_device *ptdev = group->ptdev;
 
-	drm_WARN_ON(&ptdev->base, group->csg_id >= 0);
-	drm_WARN_ON(&ptdev->base, !list_empty(&group->run_node));
-	drm_WARN_ON(&ptdev->base, !list_empty(&group->wait_node));
+	drm_WARN_ON(ptdev->base, group->csg_id >= 0);
+	drm_WARN_ON(ptdev->base, !list_empty(&group->run_node));
+	drm_WARN_ON(ptdev->base, !list_empty(&group->wait_node));
 
 	queue_work(panthor_cleanup_wq, &group->release_work);
 }
@@ -895,7 +895,7 @@ group_bind_locked(struct panthor_group *group, u32 csg_id)
 
 	lockdep_assert_held(&ptdev->scheduler->lock);
 
-	if (drm_WARN_ON(&ptdev->base, group->csg_id != -1 || csg_id >= MAX_CSGS ||
+	if (drm_WARN_ON(ptdev->base, group->csg_id != -1 || csg_id >= MAX_CSGS ||
 			ptdev->scheduler->csg_slots[csg_id].group))
 		return -EINVAL;
 
@@ -936,10 +936,10 @@ group_unbind_locked(struct panthor_group *group)
 
 	lockdep_assert_held(&ptdev->scheduler->lock);
 
-	if (drm_WARN_ON(&ptdev->base, group->csg_id < 0 || group->csg_id >= MAX_CSGS))
+	if (drm_WARN_ON(ptdev->base, group->csg_id < 0 || group->csg_id >= MAX_CSGS))
 		return -EINVAL;
 
-	if (drm_WARN_ON(&ptdev->base, group->state == PANTHOR_CS_GROUP_ACTIVE))
+	if (drm_WARN_ON(ptdev->base, group->state == PANTHOR_CS_GROUP_ACTIVE))
 		return -EINVAL;
 
 	slot = &ptdev->scheduler->csg_slots[group->csg_id];
@@ -979,7 +979,7 @@ cs_slot_prog_locked(struct panthor_device *ptdev, u32 csg_id, u32 cs_id)
 	lockdep_assert_held(&ptdev->scheduler->lock);
 
 	queue->iface.input->extract = queue->iface.output->extract;
-	drm_WARN_ON(&ptdev->base, queue->iface.input->insert < queue->iface.input->extract);
+	drm_WARN_ON(ptdev->base, queue->iface.input->insert < queue->iface.input->extract);
 
 	cs_iface->input->ringbuf_base = panthor_kernel_bo_gpuva(queue->ringbuf);
 	cs_iface->input->ringbuf_size = panthor_kernel_bo_size(queue->ringbuf);
@@ -1168,7 +1168,7 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 		 * suspend buffers. Flag the group state as unknown to make
 		 * sure it's unusable after that point.
 		 */
-		drm_err(&ptdev->base, "Invalid state on CSG %d (state=%d)",
+		drm_err(ptdev->base, "Invalid state on CSG %d (state=%d)",
 			csg_id, csg_state);
 		new_state = PANTHOR_CS_GROUP_UNKNOWN_STATE;
 		break;
@@ -1217,7 +1217,7 @@ csg_slot_prog_locked(struct panthor_device *ptdev, u32 csg_id, u32 priority)
 	if (priority > MAX_CSG_PRIO)
 		return -EINVAL;
 
-	if (drm_WARN_ON(&ptdev->base, csg_id >= MAX_CSGS))
+	if (drm_WARN_ON(ptdev->base, csg_id >= MAX_CSGS))
 		return -EINVAL;
 
 	csg_slot = &ptdev->scheduler->csg_slots[csg_id];
@@ -1290,7 +1290,7 @@ cs_slot_process_fatal_event_locked(struct panthor_device *ptdev,
 		sched_queue_delayed_work(sched, tick, 0);
 	}
 
-	drm_warn(&ptdev->base,
+	drm_warn(ptdev->base,
 		 "CSG slot %d CS slot: %d\n"
 		 "CS_FATAL.EXCEPTION_TYPE: 0x%x (%s)\n"
 		 "CS_FATAL.EXCEPTION_DATA: 0x%x\n"
@@ -1338,7 +1338,7 @@ cs_slot_process_fault_event_locked(struct panthor_device *ptdev,
 		spin_unlock(&queue->fence_ctx.lock);
 	}
 
-	drm_warn(&ptdev->base,
+	drm_warn(ptdev->base,
 		 "CSG slot %d CS slot: %d\n"
 		 "CS_FAULT.EXCEPTION_TYPE: 0x%x (%s)\n"
 		 "CS_FAULT.EXCEPTION_DATA: 0x%x\n"
@@ -1399,7 +1399,7 @@ static int group_process_tiler_oom(struct panthor_group *group, u32 cs_id)
 	 * implement incremental rendering.
 	 */
 	if (ret && ret != -ENOMEM) {
-		drm_warn(&ptdev->base, "Failed to extend the tiler heap\n");
+		drm_warn(ptdev->base, "Failed to extend the tiler heap\n");
 		group->fatal_queues |= BIT(cs_id);
 		sched_queue_delayed_work(sched, tick, 0);
 		goto out_put_heap_pool;
@@ -1462,7 +1462,7 @@ cs_slot_process_tiler_oom_event_locked(struct panthor_device *ptdev,
 
 	lockdep_assert_held(&sched->lock);
 
-	if (drm_WARN_ON(&ptdev->base, !group))
+	if (drm_WARN_ON(ptdev->base, !group))
 		return;
 
 	atomic_or(BIT(cs_id), &group->tiler_oom);
@@ -1554,10 +1554,10 @@ csg_slot_process_progress_timer_event_locked(struct panthor_device *ptdev, u32 c
 
 	lockdep_assert_held(&sched->lock);
 
-	drm_warn(&ptdev->base, "CSG slot %d progress timeout\n", csg_id);
+	drm_warn(ptdev->base, "CSG slot %d progress timeout\n", csg_id);
 
 	group = csg_slot->group;
-	if (!drm_WARN_ON(&ptdev->base, !group))
+	if (!drm_WARN_ON(ptdev->base, !group))
 		group->timedout = true;
 
 	sched_queue_delayed_work(sched, tick, 0);
@@ -1571,7 +1571,7 @@ static void sched_process_csg_irq_locked(struct panthor_device *ptdev, u32 csg_i
 
 	lockdep_assert_held(&ptdev->scheduler->lock);
 
-	if (drm_WARN_ON(&ptdev->base, csg_id >= ptdev->scheduler->csg_slot_count))
+	if (drm_WARN_ON(ptdev->base, csg_id >= ptdev->scheduler->csg_slot_count))
 		return;
 
 	csg_iface = panthor_fw_get_csg_iface(ptdev, csg_id);
@@ -1722,8 +1722,8 @@ static void csgs_upd_ctx_queue_reqs(struct panthor_device *ptdev,
 				    struct panthor_csg_slots_upd_ctx *ctx,
 				    u32 csg_id, u32 value, u32 mask)
 {
-	if (drm_WARN_ON(&ptdev->base, !mask) ||
-	    drm_WARN_ON(&ptdev->base, csg_id >= ptdev->scheduler->csg_slot_count))
+	if (drm_WARN_ON(ptdev->base, !mask) ||
+	    drm_WARN_ON(ptdev->base, csg_id >= ptdev->scheduler->csg_slot_count))
 		return;
 
 	ctx->requests[csg_id].value = (ctx->requests[csg_id].value & ~mask) | (value & mask);
@@ -1780,7 +1780,7 @@ static int csgs_upd_ctx_apply_locked(struct panthor_device *ptdev,
 
 		if (ret && acked != req_mask &&
 		    ((csg_iface->input->req ^ csg_iface->output->ack) & req_mask) != 0) {
-			drm_err(&ptdev->base, "CSG %d update request timedout", csg_id);
+			drm_err(ptdev->base, "CSG %d update request timedout", csg_id);
 			ctx->timedout_mask |= BIT(csg_id);
 		}
 	}
@@ -1979,7 +1979,7 @@ group_term_post_processing(struct panthor_group *group)
 	bool cookie;
 	u32 i = 0;
 
-	if (drm_WARN_ON(&group->ptdev->base, group_can_run(group)))
+	if (drm_WARN_ON(group->ptdev->base, group_can_run(group)))
 		return;
 
 	cookie = dma_fence_begin_signalling();
@@ -2041,7 +2041,7 @@ tick_ctx_cleanup(struct panthor_scheduler *sched,
 			/* If everything went fine, we should only have groups
 			 * to be terminated in the old_groups lists.
 			 */
-			drm_WARN_ON(&group->ptdev->base, !ctx->csg_upd_failed_mask &&
+			drm_WARN_ON(group->ptdev->base, !ctx->csg_upd_failed_mask &&
 				    group_can_run(group));
 
 			if (!group_can_run(group)) {
@@ -2064,7 +2064,7 @@ tick_ctx_cleanup(struct panthor_scheduler *sched,
 		/* If everything went fine, the groups to schedule lists should
 		 * be empty.
 		 */
-		drm_WARN_ON(&group->ptdev->base,
+		drm_WARN_ON(group->ptdev->base,
 			    !ctx->csg_upd_failed_mask && !list_empty(&ctx->groups[i]));
 
 		list_for_each_entry_safe(group, tmp, &ctx->groups[i], run_node) {
@@ -2100,7 +2100,7 @@ tick_ctx_apply(struct panthor_scheduler *sched, struct panthor_sched_tick_ctx *c
 			bool term = !group_can_run(group);
 			int csg_id = group->csg_id;
 
-			if (drm_WARN_ON(&ptdev->base, csg_id < 0))
+			if (drm_WARN_ON(ptdev->base, csg_id < 0))
 				continue;
 
 			csg_slot = &sched->csg_slots[csg_id];
@@ -2177,7 +2177,7 @@ tick_ctx_apply(struct panthor_scheduler *sched, struct panthor_sched_tick_ctx *c
 			}
 
 			csg_id = ffs(free_csg_slots) - 1;
-			if (drm_WARN_ON(&ptdev->base, csg_id < 0))
+			if (drm_WARN_ON(ptdev->base, csg_id < 0))
 				break;
 
 			csg_iface = panthor_fw_get_csg_iface(ptdev, csg_id);
@@ -2251,7 +2251,7 @@ tick_ctx_update_resched_target(struct panthor_scheduler *sched,
 	if (ctx->idle_group_count)
 		goto no_tick;
 
-	if (drm_WARN_ON(&sched->ptdev->base, ctx->min_priority >= PANTHOR_CSG_PRIORITY_COUNT))
+	if (drm_WARN_ON(sched->ptdev->base, ctx->min_priority >= PANTHOR_CSG_PRIORITY_COUNT))
 		goto no_tick;
 
 	/* If there are groups of the same priority waiting, we need to
@@ -2283,11 +2283,11 @@ static void tick_work(struct work_struct *work)
 	u64 now = get_jiffies_64();
 	int prio, ret, cookie;
 
-	if (!drm_dev_enter(&ptdev->base, &cookie))
+	if (!drm_dev_enter(ptdev->base, &cookie))
 		return;
 
-	ret = pm_runtime_resume_and_get(ptdev->base.dev);
-	if (drm_WARN_ON(&ptdev->base, ret))
+	ret = pm_runtime_resume_and_get(ptdev->base->dev);
+	if (drm_WARN_ON(ptdev->base, ret))
 		goto out_dev_exit;
 
 	if (time_before64(now, sched->resched_target))
@@ -2345,13 +2345,13 @@ static void tick_work(struct work_struct *work)
 	if (ctx.idle_group_count == ctx.group_count) {
 		panthor_devfreq_record_idle(sched->ptdev);
 		if (sched->pm.has_ref) {
-			pm_runtime_put_autosuspend(ptdev->base.dev);
+			pm_runtime_put_autosuspend(ptdev->base->dev);
 			sched->pm.has_ref = false;
 		}
 	} else {
 		panthor_devfreq_record_busy(sched->ptdev);
 		if (!sched->pm.has_ref) {
-			pm_runtime_get(ptdev->base.dev);
+			pm_runtime_get(ptdev->base->dev);
 			sched->pm.has_ref = true;
 		}
 	}
@@ -2369,8 +2369,8 @@ out_cleanup_ctx:
 
 out_unlock:
 	mutex_unlock(&sched->lock);
-	pm_runtime_mark_last_busy(ptdev->base.dev);
-	pm_runtime_put_autosuspend(ptdev->base.dev);
+	pm_runtime_mark_last_busy(ptdev->base->dev);
+	pm_runtime_put_autosuspend(ptdev->base->dev);
 
 out_dev_exit:
 	drm_dev_exit(cookie);
@@ -2423,7 +2423,7 @@ static void sync_upd_work(struct work_struct *work)
 			int ret;
 
 			ret = panthor_queue_eval_syncwait(group, cs_id);
-			drm_WARN_ON(&group->ptdev->base, ret < 0);
+			drm_WARN_ON(group->ptdev->base, ret < 0);
 			if (ret)
 				unblocked_queues |= BIT(cs_id);
 
@@ -2616,7 +2616,7 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 	if (upd_ctx.timedout_mask) {
 		u32 slot_mask = upd_ctx.timedout_mask;
 
-		drm_err(&ptdev->base, "CSG suspend failed, escalating to termination");
+		drm_err(ptdev->base, "CSG suspend failed, escalating to termination");
 		csgs_upd_ctx_init(&upd_ctx);
 		while (slot_mask) {
 			u32 csg_id = ffs(slot_mask) - 1;
@@ -2681,7 +2681,7 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 		group_unbind_locked(group);
 
-		drm_WARN_ON(&group->ptdev->base, !list_empty(&group->run_node));
+		drm_WARN_ON(group->ptdev->base, !list_empty(&group->run_node));
 
 		if (group_can_run(group)) {
 			list_add(&group->run_node,
@@ -2720,7 +2720,7 @@ void panthor_sched_pre_reset(struct panthor_device *ptdev)
 	 */
 	for (i = 0; i < ARRAY_SIZE(sched->groups.runnable); i++) {
 		/* All groups should be in the idle lists. */
-		drm_WARN_ON(&ptdev->base, !list_empty(&sched->groups.runnable[i]));
+		drm_WARN_ON(ptdev->base, !list_empty(&sched->groups.runnable[i]));
 		list_for_each_entry_safe(group, group_tmp, &sched->groups.runnable[i], run_node)
 			panthor_group_stop(group);
 	}
@@ -2871,8 +2871,8 @@ queue_run_job(struct drm_sched_job *sched_job)
 	if (!job->call_info.size)
 		return NULL;
 
-	ret = pm_runtime_resume_and_get(ptdev->base.dev);
-	if (drm_WARN_ON(&ptdev->base, ret))
+	ret = pm_runtime_resume_and_get(ptdev->base->dev);
+	if (drm_WARN_ON(ptdev->base, ret))
 		return ERR_PTR(ret);
 
 	mutex_lock(&sched->lock);
@@ -2923,7 +2923,7 @@ queue_run_job(struct drm_sched_job *sched_job)
 		gpu_write(ptdev, CSF_DOORBELL(queue->doorbell_id), 1);
 		if (!sched->pm.has_ref &&
 		    !(group->blocked_queues & BIT(job->queue_idx))) {
-			pm_runtime_get(ptdev->base.dev);
+			pm_runtime_get(ptdev->base->dev);
 			sched->pm.has_ref = true;
 		}
 	}
@@ -2932,8 +2932,8 @@ queue_run_job(struct drm_sched_job *sched_job)
 
 out_unlock:
 	mutex_unlock(&sched->lock);
-	pm_runtime_mark_last_busy(ptdev->base.dev);
-	pm_runtime_put_autosuspend(ptdev->base.dev);
+	pm_runtime_mark_last_busy(ptdev->base->dev);
+	pm_runtime_put_autosuspend(ptdev->base->dev);
 
 	return done_fence;
 }
@@ -2947,9 +2947,9 @@ queue_timedout_job(struct drm_sched_job *sched_job)
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_queue *queue = group->queues[job->queue_idx];
 
-	drm_warn(&ptdev->base, "job timeout\n");
+	drm_warn(ptdev->base, "job timeout\n");
 
-	drm_WARN_ON(&ptdev->base, atomic_read(&sched->reset.in_progress));
+	drm_WARN_ON(ptdev->base, atomic_read(&sched->reset.in_progress));
 
 	queue_stop(queue, job);
 
@@ -3043,7 +3043,7 @@ group_create_queue(struct panthor_group *group,
 			     args->ringbuf_size / (NUM_INSTRS_PER_SLOT * sizeof(u64)),
 			     0, msecs_to_jiffies(JOB_TIMEOUT_MS),
 			     group->ptdev->reset.wq,
-			     NULL, "panthor-queue", group->ptdev->base.dev);
+			     NULL, "panthor-queue", group->ptdev->base->dev);
 	if (ret)
 		goto err_free_queue;
 
@@ -3288,7 +3288,7 @@ static void job_release(struct kref *ref)
 {
 	struct panthor_job *job = container_of(ref, struct panthor_job, refcount);
 
-	drm_WARN_ON(&job->group->ptdev->base, !list_empty(&job->node));
+	drm_WARN_ON(job->group->ptdev->base, !list_empty(&job->node));
 
 	if (job->base.s_fence)
 		drm_sched_job_cleanup(&job->base);
@@ -3418,7 +3418,7 @@ void panthor_sched_unplug(struct panthor_device *ptdev)
 
 	mutex_lock(&sched->lock);
 	if (sched->pm.has_ref) {
-		pm_runtime_put(ptdev->base.dev);
+		pm_runtime_put(ptdev->base->dev);
 		sched->pm.has_ref = false;
 	}
 	mutex_unlock(&sched->lock);
@@ -3457,7 +3457,7 @@ int panthor_sched_init(struct panthor_device *ptdev)
 	u32 gpu_as_count, num_groups;
 	int prio, ret;
 
-	sched = drmm_kzalloc(&ptdev->base, sizeof(*sched), GFP_KERNEL);
+	sched = drmm_kzalloc(ptdev->base, sizeof(*sched), GFP_KERNEL);
 	if (!sched)
 		return -ENOMEM;
 
@@ -3481,7 +3481,7 @@ int panthor_sched_init(struct panthor_device *ptdev)
 	/* We need at least one AS for the MCU and one for the GPU contexts. */
 	gpu_as_count = hweight32(ptdev->gpu_info.as_present & GENMASK(31, 1));
 	if (!gpu_as_count) {
-		drm_err(&ptdev->base, "Not enough AS (%d, expected at least 2)",
+		drm_err(ptdev->base, "Not enough AS (%d, expected at least 2)",
 			gpu_as_count + 1);
 		return -EINVAL;
 	}
@@ -3502,7 +3502,7 @@ int panthor_sched_init(struct panthor_device *ptdev)
 	INIT_WORK(&sched->sync_upd_work, sync_upd_work);
 	INIT_WORK(&sched->fw_events_work, process_fw_events_work);
 
-	ret = drmm_mutex_init(&ptdev->base, &sched->lock);
+	ret = drmm_mutex_init(ptdev->base, &sched->lock);
 	if (ret)
 		return ret;
 
@@ -3512,7 +3512,7 @@ int panthor_sched_init(struct panthor_device *ptdev)
 	}
 	INIT_LIST_HEAD(&sched->groups.waiting);
 
-	ret = drmm_mutex_init(&ptdev->base, &sched->reset.lock);
+	ret = drmm_mutex_init(ptdev->base, &sched->reset.lock);
 	if (ret)
 		return ret;
 
@@ -3536,12 +3536,12 @@ int panthor_sched_init(struct panthor_device *ptdev)
 	sched->heap_alloc_wq = alloc_workqueue("panthor-heap-alloc", WQ_UNBOUND, 0);
 	sched->wq = alloc_workqueue("panthor-csf-sched", WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
 	if (!sched->wq || !sched->heap_alloc_wq) {
-		panthor_sched_fini(&ptdev->base, sched);
-		drm_err(&ptdev->base, "Failed to allocate the workqueues");
+		panthor_sched_fini(ptdev->base, sched);
+		drm_err(ptdev->base, "Failed to allocate the workqueues");
 		return -ENOMEM;
 	}
 
-	ret = drmm_add_action_or_reset(&ptdev->base, panthor_sched_fini, sched);
+	ret = drmm_add_action_or_reset(ptdev->base, panthor_sched_fini, sched);
 	if (ret)
 		return ret;
 

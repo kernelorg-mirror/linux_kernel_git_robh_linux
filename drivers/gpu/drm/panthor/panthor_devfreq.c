@@ -101,7 +101,7 @@ static int panthor_devfreq_get_dev_status(struct device *dev,
 
 	spin_unlock_irqrestore(&pdevfreq->lock, irqflags);
 
-	drm_dbg(&ptdev->base, "busy %lu total %lu %lu %% freq %lu MHz\n",
+	drm_dbg(ptdev->base, "busy %lu total %lu %lu %% freq %lu MHz\n",
 		status->busy_time, status->total_time,
 		status->busy_time / (status->total_time / 100),
 		status->current_frequency / 1000 / 1000);
@@ -126,13 +126,13 @@ int panthor_devfreq_init(struct panthor_device *ptdev)
 	 */
 	static const char * const reg_names[] = { "mali", NULL };
 	struct thermal_cooling_device *cooling;
-	struct device *dev = ptdev->base.dev;
+	struct device *dev = ptdev->base->dev;
 	struct panthor_devfreq *pdevfreq;
 	struct dev_pm_opp *opp;
 	unsigned long cur_freq;
 	int ret;
 
-	pdevfreq = drmm_kzalloc(&ptdev->base, sizeof(*ptdev->devfreq), GFP_KERNEL);
+	pdevfreq = drmm_kzalloc(ptdev->base, sizeof(*ptdev->devfreq), GFP_KERNEL);
 	if (!pdevfreq)
 		return -ENOMEM;
 

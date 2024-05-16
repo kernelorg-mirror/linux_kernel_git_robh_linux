@@ -24,25 +24,25 @@
 
 static int panthor_clk_init(struct panthor_device *ptdev)
 {
-	ptdev->clks.core = devm_clk_get(ptdev->base.dev, NULL);
+	ptdev->clks.core = devm_clk_get(ptdev->base->dev, NULL);
 	if (IS_ERR(ptdev->clks.core))
-		return dev_err_probe(ptdev->base.dev,
+		return dev_err_probe(ptdev->base->dev,
 				     PTR_ERR(ptdev->clks.core),
 				     "get 'core' clock failed");
 
-	ptdev->clks.stacks = devm_clk_get_optional(ptdev->base.dev, "stacks");
+	ptdev->clks.stacks = devm_clk_get_optional(ptdev->base->dev, "stacks");
 	if (IS_ERR(ptdev->clks.stacks))
-		return dev_err_probe(ptdev->base.dev,
+		return dev_err_probe(ptdev->base->dev,
 				     PTR_ERR(ptdev->clks.stacks),
 				     "get 'stacks' clock failed");
 
-	ptdev->clks.coregroup = devm_clk_get_optional(ptdev->base.dev, "coregroup");
+	ptdev->clks.coregroup = devm_clk_get_optional(ptdev->base->dev, "coregroup");
 	if (IS_ERR(ptdev->clks.coregroup))
-		return dev_err_probe(ptdev->base.dev,
+		return dev_err_probe(ptdev->base->dev,
 				     PTR_ERR(ptdev->clks.coregroup),
 				     "get 'coregroup' clock failed");
 
-	drm_info(&ptdev->base, "clock rate = %lu\n", clk_get_rate(ptdev->clks.core));
+	drm_info(ptdev->base, "clock rate = %lu\n", clk_get_rate(ptdev->clks.core));
 	return 0;
 }
 
@@ -55,7 +55,7 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	 * unplugged.
 	 */
 	mutex_lock(&ptdev->unplug.lock);
-	if (drm_dev_is_unplugged(&ptdev->base)) {
+	if (drm_dev_is_unplugged(ptdev->base)) {
 		/* Someone beat us, release the lock and wait for the unplug
 		 * operation to be reported as done.
 		 **/
@@ -67,14 +67,14 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	/* Call drm_dev_unplug() so any access to HW blocks happening after
 	 * that point get rejected.
 	 */
-	drm_dev_unplug(&ptdev->base);
+	drm_dev_unplug(ptdev->base);
 
 	/* We do the rest of the unplug with the unplug lock released,
 	 * future callers will wait on ptdev->unplug.done anyway.
 	 */
 	mutex_unlock(&ptdev->unplug.lock);
 
-	drm_WARN_ON(&ptdev->base, pm_runtime_get_sync(ptdev->base.dev) < 0);
+	drm_WARN_ON(ptdev->base, pm_runtime_get_sync(ptdev->base->dev) < 0);
 
 	/* Now, try to cleanly shutdown the GPU before the device resources
 	 * get reclaimed.
@@ -84,12 +84,12 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	panthor_mmu_unplug(ptdev);
 	panthor_gpu_unplug(ptdev);
 
-	pm_runtime_dont_use_autosuspend(ptdev->base.dev);
-	pm_runtime_put_sync_suspend(ptdev->base.dev);
+	pm_runtime_dont_use_autosuspend(ptdev->base->dev);
+	pm_runtime_put_sync_suspend(ptdev->base->dev);
 
 	/* If PM is disabled, we need to call the suspend handler manually. */
 	if (!IS_ENABLED(CONFIG_PM))
-		panthor_device_suspend(ptdev->base.dev);
+		panthor_device_suspend(ptdev->base->dev);
 
 	/* Report the unplug operation as done to unblock concurrent
 	 * panthor_device_unplug() callers.
@@ -99,7 +99,7 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 
 static void panthor_device_reset_cleanup(struct drm_device *ddev, void *data)
 {
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
+	struct panthor_device *ptdev = data;
 
 	cancel_work_sync(&ptdev->reset.work);
 	destroy_workqueue(ptdev->reset.wq);
@@ -119,7 +119,7 @@ static void panthor_device_reset_work(struct work_struct *work)
 		return;
 	}
 
-	if (!drm_dev_enter(&ptdev->base, &cookie))
+	if (!drm_dev_enter(ptdev->base, &cookie))
 		return;
 
 	panthor_sched_pre_reset(ptdev);
@@ -135,7 +135,7 @@ static void panthor_device_reset_work(struct work_struct *work)
 
 	if (ret) {
 		panthor_device_unplug(ptdev);
-		drm_err(&ptdev->base, "Failed to boot MCU after reset, making device unusable.");
+		drm_err(ptdev->base, "Failed to boot MCU after reset, making device unusable.");
 	}
 }
 
@@ -156,14 +156,14 @@ int panthor_device_init(struct panthor_device *ptdev)
 	struct page *p;
 	int ret;
 
-	ptdev->coherent = device_get_dma_attr(ptdev->base.dev) == DEV_DMA_COHERENT;
+	ptdev->coherent = device_get_dma_attr(ptdev->dev) == DEV_DMA_COHERENT;
 
 	init_completion(&ptdev->unplug.done);
-	ret = drmm_mutex_init(&ptdev->base, &ptdev->unplug.lock);
+	ret = drmm_mutex_init(ptdev->base, &ptdev->unplug.lock);
 	if (ret)
 		return ret;
 
-	ret = drmm_mutex_init(&ptdev->base, &ptdev->pm.mmio_lock);
+	ret = drmm_mutex_init(ptdev->base, &ptdev->pm.mmio_lock);
 	if (ret)
 		return ret;
 
@@ -174,7 +174,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 
 	ptdev->pm.dummy_latest_flush = p;
 	dummy_page_virt = page_address(p);
-	ret = drmm_add_action_or_reset(&ptdev->base, panthor_device_free_page,
+	ret = drmm_add_action_or_reset(ptdev->base, panthor_device_free_page,
 				       ptdev->pm.dummy_latest_flush);
 	if (ret)
 		return ret;
@@ -192,7 +192,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 	if (!ptdev->reset.wq)
 		return -ENOMEM;
 
-	ret = drmm_add_action_or_reset(&ptdev->base, panthor_device_reset_cleanup, NULL);
+	ret = drmm_add_action_or_reset(ptdev->base, panthor_device_reset_cleanup, ptdev);
 	if (ret)
 		return ret;
 
@@ -204,24 +204,24 @@ int panthor_device_init(struct panthor_device *ptdev)
 	if (ret)
 		return ret;
 
-	ptdev->iomem = devm_platform_get_and_ioremap_resource(to_platform_device(ptdev->base.dev),
+	ptdev->iomem = devm_platform_get_and_ioremap_resource(to_platform_device(ptdev->base->dev),
 							      0, &res);
 	if (IS_ERR(ptdev->iomem))
 		return PTR_ERR(ptdev->iomem);
 
 	ptdev->phys_addr = res->start;
 
-	ret = devm_pm_runtime_enable(ptdev->base.dev);
+	ret = devm_pm_runtime_enable(ptdev->base->dev);
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_resume_and_get(ptdev->base.dev);
+	ret = pm_runtime_resume_and_get(ptdev->base->dev);
 	if (ret)
 		return ret;
 
 	/* If PM is disabled, we need to call panthor_device_resume() manually. */
 	if (!IS_ENABLED(CONFIG_PM)) {
-		ret = panthor_device_resume(ptdev->base.dev);
+		ret = panthor_device_resume(ptdev->base->dev);
 		if (ret)
 			return ret;
 	}
@@ -243,18 +243,18 @@ int panthor_device_init(struct panthor_device *ptdev)
 		goto err_unplug_fw;
 
 	/* ~3 frames */
-	pm_runtime_set_autosuspend_delay(ptdev->base.dev, 50);
-	pm_runtime_use_autosuspend(ptdev->base.dev);
+	pm_runtime_set_autosuspend_delay(ptdev->base->dev, 50);
+	pm_runtime_use_autosuspend(ptdev->base->dev);
 
-	ret = drm_dev_register(&ptdev->base, 0);
+	ret = drm_dev_register(ptdev->base, 0);
 	if (ret)
 		goto err_disable_autosuspend;
 
-	pm_runtime_put_autosuspend(ptdev->base.dev);
+	pm_runtime_put_autosuspend(ptdev->base->dev);
 	return 0;
 
 err_disable_autosuspend:
-	pm_runtime_dont_use_autosuspend(ptdev->base.dev);
+	pm_runtime_dont_use_autosuspend(ptdev->base->dev);
 	panthor_sched_unplug(ptdev);
 
 err_unplug_fw:
@@ -267,9 +267,16 @@ err_unplug_gpu:
 	panthor_gpu_unplug(ptdev);
 
 err_rpm_put:
-	pm_runtime_put_sync_suspend(ptdev->base.dev);
+	pm_runtime_put_sync_suspend(ptdev->base->dev);
 	return ret;
 }
+
+struct panthor_device *panthor_device_alloc(void)
+{
+	struct panthor_device *ptdev = kzalloc(sizeof(struct panthor_device), GFP_KERNEL);
+	return ptdev;
+}
+
 
 #define PANTHOR_EXCEPTION(id) \
 	[DRM_PANTHOR_EXCEPTION_ ## id] = { \
@@ -351,7 +358,7 @@ static vm_fault_t panthor_mmio_vm_fault(struct vm_fault *vmf)
 	bool active;
 	int cookie;
 
-	if (!drm_dev_enter(&ptdev->base, &cookie))
+	if (!drm_dev_enter(ptdev->base, &cookie))
 		return VM_FAULT_SIGBUS;
 
 	mutex_lock(&ptdev->pm.mmio_lock);
@@ -438,10 +445,10 @@ int panthor_device_resume(struct device *dev)
 		goto err_disable_coregroup_clk;
 
 	if (panthor_device_is_initialized(ptdev) &&
-	    drm_dev_enter(&ptdev->base, &cookie)) {
+	    drm_dev_enter(ptdev->base, &cookie)) {
 		panthor_gpu_resume(ptdev);
 		panthor_mmu_resume(ptdev);
-		ret = drm_WARN_ON(&ptdev->base, panthor_fw_resume(ptdev));
+		ret = drm_WARN_ON(ptdev->base, panthor_fw_resume(ptdev));
 		if (!ret) {
 			panthor_sched_resume(ptdev);
 		} else {
@@ -464,7 +471,7 @@ int panthor_device_resume(struct device *dev)
 	 * access.
 	 */
 	mutex_lock(&ptdev->pm.mmio_lock);
-	unmap_mapping_range(ptdev->base.anon_inode->i_mapping,
+	unmap_mapping_range(ptdev->base->anon_inode->i_mapping,
 			    DRM_PANTHOR_USER_MMIO_OFFSET, 0, 1);
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_ACTIVE);
 	mutex_unlock(&ptdev->pm.mmio_lock);
@@ -504,12 +511,12 @@ int panthor_device_suspend(struct device *dev)
 	 */
 	mutex_lock(&ptdev->pm.mmio_lock);
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDING);
-	unmap_mapping_range(ptdev->base.anon_inode->i_mapping,
+	unmap_mapping_range(ptdev->base->anon_inode->i_mapping,
 			    DRM_PANTHOR_USER_MMIO_OFFSET, 0, 1);
 	mutex_unlock(&ptdev->pm.mmio_lock);
 
 	if (panthor_device_is_initialized(ptdev) &&
-	    drm_dev_enter(&ptdev->base, &cookie)) {
+	    drm_dev_enter(ptdev->base, &cookie)) {
 		cancel_work_sync(&ptdev->reset.work);
 
 		/* We prepare everything as if we were resetting the GPU.
@@ -525,10 +532,10 @@ int panthor_device_suspend(struct device *dev)
 	ret = panthor_devfreq_suspend(ptdev);
 	if (ret) {
 		if (panthor_device_is_initialized(ptdev) &&
-		    drm_dev_enter(&ptdev->base, &cookie)) {
+		    drm_dev_enter(ptdev->base, &cookie)) {
 			panthor_gpu_resume(ptdev);
 			panthor_mmu_resume(ptdev);
-			drm_WARN_ON(&ptdev->base, panthor_fw_resume(ptdev));
+			drm_WARN_ON(ptdev->base, panthor_fw_resume(ptdev));
 			panthor_sched_resume(ptdev);
 			drm_dev_exit(cookie);
 		}
@@ -550,7 +557,7 @@ err_set_active:
 	 */
 	mutex_lock(&ptdev->pm.mmio_lock);
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_ACTIVE);
-	unmap_mapping_range(ptdev->base.anon_inode->i_mapping,
+	unmap_mapping_range(ptdev->base->anon_inode->i_mapping,
 			    DRM_PANTHOR_USER_MMIO_OFFSET, 0, 1);
 	mutex_unlock(&ptdev->pm.mmio_lock);
 	return ret;

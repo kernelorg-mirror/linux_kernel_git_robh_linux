@@ -71,7 +71,8 @@ struct panthor_irq {
  */
 struct panthor_device {
 	/** @base: Base drm_device. */
-	struct drm_device base;
+	struct drm_device *base;
+	struct device *dev;
 
 	/** @phys_addr: Physical address of the iomem region. */
 	phys_addr_t phys_addr;
@@ -179,6 +180,8 @@ struct panthor_file {
 };
 
 int panthor_device_init(struct panthor_device *ptdev);
+struct panthor_device *panthor_device_alloc(void);
+
 void panthor_device_unplug(struct panthor_device *ptdev);
 
 /**
@@ -346,7 +349,7 @@ static int panthor_request_ ## __name ## _irq(struct panthor_device *ptdev,			\
 	pirq->irq = irq;									\
 	panthor_ ## __name ## _irq_resume(pirq, mask);						\
 												\
-	return devm_request_threaded_irq(ptdev->base.dev, irq,					\
+	return devm_request_threaded_irq(ptdev->base->dev, irq,					\
 					 panthor_ ## __name ## _irq_raw_handler,		\
 					 panthor_ ## __name ## _irq_threaded_handler,		\
 					 IRQF_SHARED, KBUILD_MODNAME "-" # __name,		\

@@ -441,8 +441,8 @@ static void *alloc_pt(void *cookie, size_t size, gfp_t gfp)
 	if (unlikely(!vm->root_page_table)) {
 		struct page *p;
 
-		drm_WARN_ON(&vm->ptdev->base, vm->op_ctx);
-		p = alloc_pages_node(dev_to_node(vm->ptdev->base.dev),
+		drm_WARN_ON(vm->ptdev->base, vm->op_ctx);
+		p = alloc_pages_node(dev_to_node(vm->ptdev->base->dev),
 				     gfp | __GFP_ZERO, get_order(size));
 		page = p ? page_address(p) : NULL;
 		vm->root_page_table = page;
@@ -452,14 +452,14 @@ static void *alloc_pt(void *cookie, size_t size, gfp_t gfp)
 	/* We're not supposed to have anything bigger than 4k here, because we picked a
 	 * 4k granule size at init time.
 	 */
-	if (drm_WARN_ON(&vm->ptdev->base, size != SZ_4K))
+	if (drm_WARN_ON(vm->ptdev->base, size != SZ_4K))
 		return NULL;
 
 	/* We must have some op_ctx attached to the VM and it must have at least one
 	 * free page.
 	 */
-	if (drm_WARN_ON(&vm->ptdev->base, !vm->op_ctx) ||
-	    drm_WARN_ON(&vm->ptdev->base,
+	if (drm_WARN_ON(vm->ptdev->base, !vm->op_ctx) ||
+	    drm_WARN_ON(vm->ptdev->base,
 			vm->op_ctx->rsvd_page_tables.ptr >= vm->op_ctx->rsvd_page_tables.count))
 		return NULL;
 
@@ -494,7 +494,7 @@ static void free_pt(void *cookie, void *data, size_t size)
 		return;
 	}
 
-	if (drm_WARN_ON(&vm->ptdev->base, size != SZ_4K))
+	if (drm_WARN_ON(vm->ptdev->base, size != SZ_4K))
 		return;
 
 	/* Return the page to the pt_cache. */
@@ -515,7 +515,7 @@ static int wait_ready(struct panthor_device *ptdev, u32 as_nr)
 
 	if (ret) {
 		panthor_device_schedule_reset(ptdev);
-		drm_err(&ptdev->base, "AS_ACTIVE bit stuck\n");
+		drm_err(ptdev->base, "AS_ACTIVE bit stuck\n");
 	}
 
 	return ret;
@@ -668,7 +668,7 @@ bool panthor_vm_has_unhandled_faults(struct panthor_vm *vm)
  *
  * Return: true if the VM is unusable, false otherwise.
  */
-bool panthor_vm_is_unusable(struct panthor_vm *vm)
+bool panthor_vm_is_unusable(const struct panthor_vm *vm)
 {
 	return vm->unusable;
 }
@@ -679,7 +679,7 @@ static void panthor_vm_release_as_locked(struct panthor_vm *vm)
 
 	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
 
-	if (drm_WARN_ON(&ptdev->base, vm->as.id < 0))
+	if (drm_WARN_ON(ptdev->base, vm->as.id < 0))
 		return;
 
 	ptdev->mmu->as.slots[vm->as.id].vm = NULL;
@@ -705,7 +705,7 @@ int panthor_vm_active(struct panthor_vm *vm)
 	int ret = 0, as, cookie;
 	u64 transtab, transcfg;
 
-	if (!drm_dev_enter(&ptdev->base, &cookie))
+	if (!drm_dev_enter(ptdev->base, &cookie))
 		return -ENODEV;
 
 	if (refcount_inc_not_zero(&vm->as.active_cnt))
@@ -729,7 +729,7 @@ int panthor_vm_active(struct panthor_vm *vm)
 
 	/* Check for a free AS */
 	if (vm->for_mcu) {
-		drm_WARN_ON(&ptdev->base, ptdev->mmu->as.alloc_mask & BIT(0));
+		drm_WARN_ON(ptdev->base, ptdev->mmu->as.alloc_mask & BIT(0));
 		as = 0;
 	} else {
 		as = ffz(ptdev->mmu->as.alloc_mask | BIT(0));
@@ -741,12 +741,12 @@ int panthor_vm_active(struct panthor_vm *vm)
 		lru_vm = list_first_entry_or_null(&ptdev->mmu->as.lru_list,
 						  struct panthor_vm,
 						  as.lru_node);
-		if (drm_WARN_ON(&ptdev->base, !lru_vm)) {
+		if (drm_WARN_ON(ptdev->base, !lru_vm)) {
 			ret = -EBUSY;
 			goto out_unlock;
 		}
 
-		drm_WARN_ON(&ptdev->base, refcount_read(&lru_vm->as.active_cnt));
+		drm_WARN_ON(ptdev->base, refcount_read(&lru_vm->as.active_cnt));
 		as = lru_vm->as.id;
 		panthor_vm_release_as_locked(lru_vm);
 	}
@@ -813,7 +813,7 @@ void panthor_vm_idle(struct panthor_vm *vm)
 	if (!refcount_dec_and_mutex_lock(&vm->as.active_cnt, &ptdev->mmu->as.slots_lock))
 		return;
 
-	if (!drm_WARN_ON(&ptdev->base, vm->as.id == -1 || !list_empty(&vm->as.lru_node)))
+	if (!drm_WARN_ON(ptdev->base, vm->as.id == -1 || !list_empty(&vm->as.lru_node)))
 		list_add_tail(&vm->as.lru_node, &ptdev->mmu->as.lru_list);
 
 	refcount_set(&vm->as.active_cnt, 0);
@@ -871,11 +871,11 @@ static int panthor_vm_flush_range(struct panthor_vm *vm, u64 iova, u64 size)
 		return 0;
 
 	/* If the device is unplugged, we just silently skip the flush. */
-	if (!drm_dev_enter(&ptdev->base, &cookie))
+	if (!drm_dev_enter(ptdev->base, &cookie))
 		return 0;
 
 	/* Flush the PTs only if we're already awake */
-	if (pm_runtime_active(ptdev->base.dev))
+	if (pm_runtime_active(ptdev->base->dev))
 		ret = mmu_hw_do_operation(vm, iova, size, AS_COMMAND_FLUSH_PT);
 
 	drm_dev_exit(cookie);
@@ -888,7 +888,7 @@ static int panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
 	struct io_pgtable_ops *ops = vm->pgtbl_ops;
 	u64 offset = 0;
 
-	drm_dbg(&ptdev->base, "unmap: as=%d, iova=%llx, len=%llx", vm->as.id, iova, size);
+	drm_dbg(ptdev->base, "unmap: as=%d, iova=%llx, len=%llx", vm->as.id, iova, size);
 
 	while (offset < size) {
 		size_t unmapped_sz = 0, pgcount;
@@ -896,8 +896,8 @@ static int panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
 
 		unmapped_sz = ops->unmap_pages(ops, iova + offset, pgsize, pgcount, NULL);
 
-		if (drm_WARN_ON(&ptdev->base, unmapped_sz != pgsize * pgcount)) {
-			drm_err(&ptdev->base, "failed to unmap range %llx-%llx (requested range %llx-%llx)\n",
+		if (drm_WARN_ON(ptdev->base, unmapped_sz != pgsize * pgcount)) {
+			drm_err(ptdev->base, "failed to unmap range %llx-%llx (requested range %llx-%llx)\n",
 				iova + offset + unmapped_sz,
 				iova + offset + pgsize * pgcount,
 				iova, iova + size);
@@ -938,7 +938,7 @@ panthor_vm_map_pages(struct panthor_vm *vm, u64 iova, int prot,
 		len = min_t(size_t, len, size);
 		size -= len;
 
-		drm_dbg(&ptdev->base, "map: as=%d, iova=%llx, paddr=%pad, len=%zx",
+		drm_dbg(ptdev->base, "map: as=%d, iova=%llx, paddr=%pad, len=%zx",
 			vm->as.id, iova, &paddr, len);
 
 		while (len) {
@@ -951,14 +951,14 @@ panthor_vm_map_pages(struct panthor_vm *vm, u64 iova, int prot,
 			paddr += mapped;
 			len -= mapped;
 
-			if (drm_WARN_ON(&ptdev->base, !ret && !mapped))
+			if (drm_WARN_ON(ptdev->base, !ret && !mapped))
 				ret = -ENOMEM;
 
 			if (ret) {
 				/* If something failed, unmap what we've already mapped before
 				 * returning. The unmap call is not supposed to fail.
 				 */
-				drm_WARN_ON(&ptdev->base,
+				drm_WARN_ON(ptdev->base,
 					    panthor_vm_unmap_pages(vm, start_iova,
 								   iova - start_iova));
 				return ret;
@@ -1506,7 +1506,7 @@ static void panthor_vm_destroy(struct panthor_vm *vm)
 	vm->heaps.pool = NULL;
 	mutex_unlock(&vm->heaps.lock);
 
-	drm_WARN_ON(&vm->ptdev->base,
+	drm_WARN_ON(vm->ptdev->base,
 		    panthor_vm_unmap_range(vm, vm->base.mm_start, vm->base.mm_range));
 	panthor_vm_put(vm);
 }
@@ -1620,7 +1620,7 @@ static const char *access_type_name(struct panthor_device *ptdev,
 	case AS_FAULTSTATUS_ACCESS_TYPE_EX:
 		return "EXECUTE";
 	default:
-		drm_WARN_ON(&ptdev->base, 1);
+		drm_WARN_ON(ptdev->base, 1);
 		return NULL;
 	}
 }
@@ -1656,7 +1656,7 @@ static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
 			panthor_mmu_fault_mask(ptdev, ~ptdev->mmu->as.faulty_mask);
 
 		/* terminal fault, print info about the fault */
-		drm_err(&ptdev->base,
+		drm_err(ptdev->base,
 			"Unhandled Page fault in AS%d at VA 0x%016llX\n"
 			"raw fault status: 0x%X\n"
 			"decoded fault status: %s\n"
@@ -1709,7 +1709,7 @@ void panthor_mmu_suspend(struct panthor_device *ptdev)
 		struct panthor_vm *vm = ptdev->mmu->as.slots[i].vm;
 
 		if (vm) {
-			drm_WARN_ON(&ptdev->base, panthor_mmu_as_disable(ptdev, i));
+			drm_WARN_ON(ptdev->base, panthor_mmu_as_disable(ptdev, i));
 			panthor_vm_release_as_locked(vm);
 		}
 	}
@@ -1805,7 +1805,7 @@ static void panthor_vm_free(struct drm_gpuvm *gpuvm)
 	struct panthor_device *ptdev = vm->ptdev;
 
 	mutex_lock(&vm->heaps.lock);
-	if (drm_WARN_ON(&ptdev->base, vm->heaps.pool))
+	if (drm_WARN_ON(ptdev->base, vm->heaps.pool))
 		panthor_heap_pool_destroy(vm->heaps.pool);
 	mutex_unlock(&vm->heaps.lock);
 	mutex_destroy(&vm->heaps.lock);
@@ -1828,7 +1828,7 @@ static void panthor_vm_free(struct drm_gpuvm *gpuvm)
 	if (vm->as.id >= 0) {
 		int cookie;
 
-		if (drm_dev_enter(&ptdev->base, &cookie)) {
+		if (drm_dev_enter(ptdev->base, &cookie)) {
 			panthor_mmu_as_disable(ptdev, vm->as.id);
 			drm_dev_exit(cookie);
 		}
@@ -1948,7 +1948,7 @@ static void panthor_vma_link(struct panthor_vm *vm,
 
 	mutex_lock(&bo->gpuva_list_lock);
 	drm_gpuva_link(&vma->base, vm_bo);
-	drm_WARN_ON(&vm->ptdev->base, drm_gpuvm_bo_put(vm_bo));
+	drm_WARN_ON(vm->ptdev->base, drm_gpuvm_bo_put(vm_bo));
 	mutex_unlock(&bo->gpuva_list_lock);
 }
 
@@ -2065,7 +2065,7 @@ static int panthor_gpuva_sm_step_unmap(struct drm_gpuva_op *op,
 
 	ret = panthor_vm_unmap_pages(vm, unmap_vma->base.va.addr,
 				     unmap_vma->base.va.range);
-	if (drm_WARN_ON(&vm->ptdev->base, ret))
+	if (drm_WARN_ON(vm->ptdev->base, ret))
 		return ret;
 
 	drm_gpuva_unmap(&op->unmap);
@@ -2242,7 +2242,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 		return ERR_PTR(-ENOMEM);
 
 	/* We allocate a dummy GEM for the VM. */
-	dummy_gem = drm_gpuvm_resv_object_alloc(&ptdev->base);
+	dummy_gem = drm_gpuvm_resv_object_alloc(ptdev->base);
 	if (!dummy_gem) {
 		ret = -ENOMEM;
 		goto err_free_vm;
@@ -2278,7 +2278,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 		.oas		= pa_bits,
 		.coherent_walk	= ptdev->coherent,
 		.tlb		= &mmu_tlb_ops,
-		.iommu_dev	= ptdev->base.dev,
+		.iommu_dev	= ptdev->base->dev,
 		.alloc		= alloc_pt,
 		.free		= free_pt,
 	};
@@ -2293,7 +2293,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 	ret = drm_sched_init(&vm->sched, &panthor_vm_bind_ops, ptdev->mmu->vm.wq,
 			     1, 1, 0,
 			     MAX_SCHEDULE_TIMEOUT, NULL, NULL,
-			     "panthor-vm-bind", ptdev->base.dev);
+			     "panthor-vm-bind", ptdev->base->dev);
 	if (ret)
 		goto err_free_io_pgtable;
 
@@ -2317,7 +2317,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 	 * to be handled the same way user VMAs are.
 	 */
 	drm_gpuvm_init(&vm->base, for_mcu ? "panthor-MCU-VM" : "panthor-GPU-VM",
-		       DRM_GPUVM_RESV_PROTECTED, &ptdev->base, dummy_gem,
+		       DRM_GPUVM_RESV_PROTECTED, ptdev->base, dummy_gem,
 		       min_va, va_range, 0, 0, &panthor_gpuvm_ops);
 	drm_gem_object_put(dummy_gem);
 	return vm;
@@ -2635,7 +2635,7 @@ void panthor_mmu_unplug(struct panthor_device *ptdev)
 		struct panthor_vm *vm = ptdev->mmu->as.slots[i].vm;
 
 		if (vm) {
-			drm_WARN_ON(&ptdev->base, panthor_mmu_as_disable(ptdev, i));
+			drm_WARN_ON(ptdev->base, panthor_mmu_as_disable(ptdev, i));
 			panthor_vm_release_as_locked(vm);
 		}
 	}
@@ -2659,24 +2659,24 @@ int panthor_mmu_init(struct panthor_device *ptdev)
 	struct panthor_mmu *mmu;
 	int ret, irq;
 
-	mmu = drmm_kzalloc(&ptdev->base, sizeof(*mmu), GFP_KERNEL);
+	mmu = drmm_kzalloc(ptdev->base, sizeof(*mmu), GFP_KERNEL);
 	if (!mmu)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&mmu->as.lru_list);
 
-	ret = drmm_mutex_init(&ptdev->base, &mmu->as.slots_lock);
+	ret = drmm_mutex_init(ptdev->base, &mmu->as.slots_lock);
 	if (ret)
 		return ret;
 
 	INIT_LIST_HEAD(&mmu->vm.list);
-	ret = drmm_mutex_init(&ptdev->base, &mmu->vm.lock);
+	ret = drmm_mutex_init(ptdev->base, &mmu->vm.lock);
 	if (ret)
 		return ret;
 
 	ptdev->mmu = mmu;
 
-	irq = platform_get_irq_byname(to_platform_device(ptdev->base.dev), "mmu");
+	irq = platform_get_irq_byname(to_platform_device(ptdev->base->dev), "mmu");
 	if (irq <= 0)
 		return -ENODEV;
 
@@ -2698,7 +2698,7 @@ int panthor_mmu_init(struct panthor_device *ptdev)
 		ptdev->gpu_info.mmu_features |= sizeof(unsigned long) * 8;
 	}
 
-	return drmm_add_action_or_reset(&ptdev->base, panthor_mmu_release_wq, mmu->vm.wq);
+	return drmm_add_action_or_reset(ptdev->base, panthor_mmu_release_wq, mmu->vm.wq);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -2717,7 +2717,7 @@ static int show_each_vm(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *ddev = node->minor->dev;
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
+	struct panthor_device *ptdev = ddev->dev_private; //FIXME
 	int (*show)(struct panthor_vm *, struct seq_file *) = node->info_ent->data;
 	struct panthor_vm *vm;
 	int ret = 0;

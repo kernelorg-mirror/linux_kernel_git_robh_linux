@@ -488,9 +488,8 @@ static int
 panthor_submit_ctx_update_job_sync_signal_fences(struct panthor_submit_ctx *ctx,
 						 u32 job_idx)
 {
-	struct panthor_device *ptdev = container_of(ctx->file->minor->dev,
-						    struct panthor_device,
-						    base);
+	struct panthor_file *pfile = ctx->file->driver_priv;
+	struct panthor_device *ptdev = pfile->ptdev;
 	struct dma_fence *done_fence = &ctx->jobs[job_idx].job->s_fence->finished;
 	const struct drm_panthor_sync_op *sync_ops = ctx->jobs[job_idx].syncops;
 	u32 sync_op_count = ctx->jobs[job_idx].syncop_count;
@@ -504,14 +503,14 @@ panthor_submit_ctx_update_job_sync_signal_fences(struct panthor_submit_ctx *ctx,
 
 		sig_sync = panthor_submit_ctx_search_sync_signal(ctx, sync_ops[i].handle,
 								 sync_ops[i].timeline_value);
-		if (drm_WARN_ON(&ptdev->base, !sig_sync))
+		if (drm_WARN_ON(ptdev->base, !sig_sync))
 			return -EINVAL;
 
 		old_fence = sig_sync->fence;
 		sig_sync->fence = dma_fence_get(done_fence);
 		dma_fence_put(old_fence);
 
-		if (drm_WARN_ON(&ptdev->base, !sig_sync->fence))
+		if (drm_WARN_ON(ptdev->base, !sig_sync->fence))
 			return -EINVAL;
 	}
 
@@ -589,9 +588,6 @@ static int
 panthor_submit_ctx_add_sync_deps_to_job(struct panthor_submit_ctx *ctx,
 					u32 job_idx)
 {
-	struct panthor_device *ptdev = container_of(ctx->file->minor->dev,
-						    struct panthor_device,
-						    base);
 	const struct drm_panthor_sync_op *sync_ops = ctx->jobs[job_idx].syncops;
 	struct drm_sched_job *job = ctx->jobs[job_idx].job;
 	u32 sync_op_count = ctx->jobs[job_idx].syncop_count;
@@ -611,7 +607,7 @@ panthor_submit_ctx_add_sync_deps_to_job(struct panthor_submit_ctx *ctx,
 		sig_sync = panthor_submit_ctx_search_sync_signal(ctx, sync_ops[i].handle,
 								 sync_ops[i].timeline_value);
 		if (sig_sync) {
-			if (drm_WARN_ON(&ptdev->base, !sig_sync->fence))
+			if (drm_WARN_ON(ctx->file->minor->dev, !sig_sync->fence))
 				return -EINVAL;
 
 			fence = dma_fence_get(sig_sync->fence);
@@ -750,11 +746,8 @@ static void panthor_submit_ctx_cleanup(struct panthor_submit_ctx *ctx,
 	kvfree(ctx->jobs);
 }
 
-static int panthor_ioctl_dev_query(struct drm_device *ddev, void *data, struct drm_file *file)
+int _panthor_ioctl_dev_query(struct panthor_device *ptdev, struct drm_panthor_dev_query *args)
 {
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
-	struct drm_panthor_dev_query *args = data;
-
 	if (!args->pointer) {
 		switch (args->type) {
 		case DRM_PANTHOR_DEV_QUERY_GPU_INFO:
@@ -782,17 +775,22 @@ static int panthor_ioctl_dev_query(struct drm_device *ddev, void *data, struct d
 	}
 }
 
+int panthor_ioctl_dev_query(struct drm_device *ddev, void *data, struct drm_file *file)
+{
+	struct panthor_file *pfile = file->driver_priv;
+
+	return _panthor_ioctl_dev_query(pfile->ptdev, data);
+}
+
 #define PANTHOR_VM_CREATE_FLAGS			0
 
-static int panthor_ioctl_vm_create(struct drm_device *ddev, void *data,
-				   struct drm_file *file)
+int _panthor_ioctl_vm_create(struct panthor_device *ptdev, struct drm_panthor_vm_create *args,
+			    const struct drm_file *file)
 {
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
 	struct panthor_file *pfile = file->driver_priv;
-	struct drm_panthor_vm_create *args = data;
 	int cookie, ret;
 
-	if (!drm_dev_enter(ddev, &cookie))
+	if (!drm_dev_enter(ptdev->base, &cookie))
 		return -ENODEV;
 
 	ret = panthor_vm_pool_create_vm(ptdev, pfile->vms,  args);
@@ -803,6 +801,14 @@ static int panthor_ioctl_vm_create(struct drm_device *ddev, void *data,
 
 	drm_dev_exit(cookie);
 	return ret;
+}
+
+int panthor_ioctl_vm_create(struct drm_device *ddev, void *data,
+			    struct drm_file *file)
+{
+	struct panthor_file *pfile = file->driver_priv;
+
+	return _panthor_ioctl_vm_create(pfile->ptdev, data, file);
 }
 
 static int panthor_ioctl_vm_destroy(struct drm_device *ddev, void *data,
@@ -879,11 +885,10 @@ out:
 	return ret;
 }
 
-static int panthor_ioctl_group_submit(struct drm_device *ddev, void *data,
-				      struct drm_file *file)
+int panthor_group_submit(struct drm_device *ddev, struct drm_panthor_group_submit *args,
+			 struct drm_file *file)
 {
 	struct panthor_file *pfile = file->driver_priv;
-	struct drm_panthor_group_submit *args = data;
 	struct drm_panthor_queue_submit *jobs_args;
 	struct panthor_submit_ctx ctx;
 	int ret = 0, cookie;
@@ -984,6 +989,12 @@ out_dev_exit:
 	return ret;
 }
 
+static int panthor_ioctl_group_submit(struct drm_device *ddev, void *data,
+			       struct drm_file *file)
+{
+	return panthor_group_submit(ddev, data, file);
+}
+
 static int panthor_ioctl_group_destroy(struct drm_device *ddev, void *data,
 				       struct drm_file *file)
 {
@@ -996,11 +1007,9 @@ static int panthor_ioctl_group_destroy(struct drm_device *ddev, void *data,
 	return panthor_group_destroy(pfile, args->group_handle);
 }
 
-static int panthor_ioctl_group_create(struct drm_device *ddev, void *data,
-				      struct drm_file *file)
+int _panthor_group_create(struct drm_panthor_group_create *args,
+			  struct panthor_file *pfile)
 {
-	struct panthor_file *pfile = file->driver_priv;
-	struct drm_panthor_group_create *args = data;
 	struct drm_panthor_queue_create *queue_args;
 	int ret;
 
@@ -1021,6 +1030,12 @@ static int panthor_ioctl_group_create(struct drm_device *ddev, void *data,
 	return ret;
 }
 
+static int panthor_ioctl_group_create(struct drm_device *ddev, void *data,
+				      struct drm_file *file)
+{
+	struct panthor_file *pfile = file->driver_priv;
+	return _panthor_group_create(data, pfile);
+}
 static int panthor_ioctl_group_get_state(struct drm_device *ddev, void *data,
 					 struct drm_file *file)
 {
@@ -1030,11 +1045,9 @@ static int panthor_ioctl_group_get_state(struct drm_device *ddev, void *data,
 	return panthor_group_get_state(pfile, args);
 }
 
-static int panthor_ioctl_tiler_heap_create(struct drm_device *ddev, void *data,
-					   struct drm_file *file)
+int panthor_tiler_heap_create(struct panthor_file *pfile,
+			      struct drm_panthor_tiler_heap_create *args)
 {
-	struct panthor_file *pfile = file->driver_priv;
-	struct drm_panthor_tiler_heap_create *args = data;
 	struct panthor_heap_pool *pool;
 	struct panthor_vm *vm;
 	int ret;
@@ -1073,11 +1086,16 @@ out_put_vm:
 	return ret;
 }
 
-static int panthor_ioctl_tiler_heap_destroy(struct drm_device *ddev, void *data,
-					    struct drm_file *file)
+static int panthor_ioctl_tiler_heap_create(struct drm_device *ddev, void *data,
+					   struct drm_file *file)
 {
 	struct panthor_file *pfile = file->driver_priv;
-	struct drm_panthor_tiler_heap_destroy *args = data;
+	return panthor_tiler_heap_create(pfile, data);
+}
+
+int panthor_tiler_heap_destroy(struct panthor_file *pfile,
+			       const struct drm_panthor_tiler_heap_destroy *args)
+{
 	struct panthor_heap_pool *pool;
 	struct panthor_vm *vm;
 	int ret;
@@ -1103,8 +1121,14 @@ out_put_vm:
 	return ret;
 }
 
-static int panthor_ioctl_vm_bind_async(struct drm_device *ddev,
-				       struct drm_panthor_vm_bind *args,
+static int panthor_ioctl_tiler_heap_destroy(struct drm_device *ddev, void *data,
+					    struct drm_file *file)
+{
+	struct panthor_file *pfile = file->driver_priv;
+	return panthor_tiler_heap_destroy(pfile, data);
+}
+
+int panthor_ioctl_vm_bind_async(struct drm_panthor_vm_bind *args,
 				       struct drm_file *file)
 {
 	struct panthor_file *pfile = file->driver_priv;
@@ -1172,8 +1196,7 @@ out_put_vm:
 	return ret;
 }
 
-static int panthor_ioctl_vm_bind_sync(struct drm_device *ddev,
-				      struct drm_panthor_vm_bind *args,
+int panthor_ioctl_vm_bind_sync(struct drm_panthor_vm_bind *args,
 				      struct drm_file *file)
 {
 	struct panthor_file *pfile = file->driver_priv;
@@ -1217,9 +1240,9 @@ static int panthor_ioctl_vm_bind(struct drm_device *ddev, void *data,
 		return -ENODEV;
 
 	if (args->flags & DRM_PANTHOR_VM_BIND_ASYNC)
-		ret = panthor_ioctl_vm_bind_async(ddev, args, file);
+		ret = panthor_ioctl_vm_bind_async(args, file);
 	else
-		ret = panthor_ioctl_vm_bind_sync(ddev, args, file);
+		ret = panthor_ioctl_vm_bind_sync(args, file);
 
 	drm_dev_exit(cookie);
 	return ret;
@@ -1248,7 +1271,6 @@ static int panthor_ioctl_vm_get_state(struct drm_device *ddev, void *data,
 static int
 panthor_open(struct drm_device *ddev, struct drm_file *file)
 {
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
 	struct panthor_file *pfile;
 	int ret;
 
@@ -1261,7 +1283,7 @@ panthor_open(struct drm_device *ddev, struct drm_file *file)
 		goto err_put_mod;
 	}
 
-	pfile->ptdev = ptdev;
+	pfile->ptdev = ddev->dev_private;
 
 	ret = panthor_vm_pool_create(pfile);
 	if (ret)

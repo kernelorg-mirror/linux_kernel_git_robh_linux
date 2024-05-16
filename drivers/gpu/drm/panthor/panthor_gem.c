@@ -81,14 +81,14 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	struct panthor_gem_object *bo;
 	int ret;
 
-	if (drm_WARN_ON(&ptdev->base, !vm))
+	if (drm_WARN_ON(ptdev->base, !vm))
 		return ERR_PTR(-EINVAL);
 
 	kbo = kzalloc(sizeof(*kbo), GFP_KERNEL);
 	if (!kbo)
 		return ERR_PTR(-ENOMEM);
 
-	obj = drm_gem_shmem_create(&ptdev->base, size);
+	obj = drm_gem_shmem_create(ptdev->base, size);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto err_free_bo;
@@ -168,7 +168,7 @@ static const struct drm_gem_object_funcs panthor_gem_funcs = {
  */
 struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t size)
 {
-	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
+	struct panthor_device *ptdev = ddev->dev_private; // FIXME
 	struct panthor_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);

@@ -123,12 +123,12 @@ static void panthor_gpu_init_info(struct panthor_device *ptdev)
 			break;
 	}
 
-	drm_info(&ptdev->base,
+	drm_info(ptdev->base,
 		 "mali-%s id 0x%x major 0x%x minor 0x%x status 0x%x",
 		 model->name ?: "unknown", ptdev->gpu_info.gpu_id >> 16,
 		 major, minor, status);
 
-	drm_info(&ptdev->base,
+	drm_info(ptdev->base,
 		 "Features: L2:%#x Tiler:%#x Mem:%#x MMU:%#x AS:%#x",
 		 ptdev->gpu_info.l2_features,
 		 ptdev->gpu_info.tiler_features,
@@ -136,7 +136,7 @@ static void panthor_gpu_init_info(struct panthor_device *ptdev)
 		 ptdev->gpu_info.mmu_features,
 		 ptdev->gpu_info.as_present);
 
-	drm_info(&ptdev->base,
+	drm_info(ptdev->base,
 		 "shader_present=0x%0llx l2_present=0x%0llx tiler_present=0x%0llx",
 		 ptdev->gpu_info.shader_present, ptdev->gpu_info.l2_present,
 		 ptdev->gpu_info.tiler_present);
@@ -149,12 +149,12 @@ static void panthor_gpu_irq_handler(struct panthor_device *ptdev, u32 status)
 		u64 address = ((u64)gpu_read(ptdev, GPU_FAULT_ADDR_HI) << 32) |
 			      gpu_read(ptdev, GPU_FAULT_ADDR_LO);
 
-		drm_warn(&ptdev->base, "GPU Fault 0x%08x (%s) at 0x%016llx\n",
+		drm_warn(ptdev->base, "GPU Fault 0x%08x (%s) at 0x%016llx\n",
 			 fault_status, panthor_exception_name(ptdev, fault_status & 0xFF),
 			 address);
 	}
 	if (status & GPU_IRQ_PROTM_FAULT)
-		drm_warn(&ptdev->base, "GPU Fault in protected mode\n");
+		drm_warn(ptdev->base, "GPU Fault in protected mode\n");
 
 	spin_lock(&ptdev->gpu->reqs_lock);
 	if (status & ptdev->gpu->pending_reqs) {
@@ -195,7 +195,7 @@ int panthor_gpu_init(struct panthor_device *ptdev)
 	u32 pa_bits;
 	int ret, irq;
 
-	gpu = drmm_kzalloc(&ptdev->base, sizeof(*gpu), GFP_KERNEL);
+	gpu = drmm_kzalloc(ptdev->base, sizeof(*gpu), GFP_KERNEL);
 	if (!gpu)
 		return -ENOMEM;
 
@@ -204,13 +204,13 @@ int panthor_gpu_init(struct panthor_device *ptdev)
 	ptdev->gpu = gpu;
 	panthor_gpu_init_info(ptdev);
 
-	dma_set_max_seg_size(ptdev->base.dev, UINT_MAX);
+	dma_set_max_seg_size(ptdev->base->dev, UINT_MAX);
 	pa_bits = GPU_MMU_FEATURES_PA_BITS(ptdev->gpu_info.mmu_features);
-	ret = dma_set_mask_and_coherent(ptdev->base.dev, DMA_BIT_MASK(pa_bits));
+	ret = dma_set_mask_and_coherent(ptdev->base->dev, DMA_BIT_MASK(pa_bits));
 	if (ret)
 		return ret;
 
-	irq = platform_get_irq_byname(to_platform_device(ptdev->base.dev), "gpu");
+	irq = platform_get_irq_byname(to_platform_device(ptdev->base->dev), "gpu");
 	if (irq < 0)
 		return irq;
 
@@ -250,7 +250,7 @@ int panthor_gpu_block_power_off(struct panthor_device *ptdev,
 						 val, !(mask32 & val),
 						 100, timeout_us);
 		if (ret) {
-			drm_err(&ptdev->base, "timeout waiting on %s:%llx power transition",
+			drm_err(ptdev->base, "timeout waiting on %s:%llx power transition",
 				blk_name, mask);
 			return ret;
 		}
@@ -272,7 +272,7 @@ int panthor_gpu_block_power_off(struct panthor_device *ptdev,
 						 val, !(mask32 & val),
 						 100, timeout_us);
 		if (ret) {
-			drm_err(&ptdev->base, "timeout waiting on %s:%llx power transition",
+			drm_err(ptdev->base, "timeout waiting on %s:%llx power transition",
 				blk_name, mask);
 			return ret;
 		}
@@ -311,7 +311,7 @@ int panthor_gpu_block_power_on(struct panthor_device *ptdev,
 						 val, !(mask32 & val),
 						 100, timeout_us);
 		if (ret) {
-			drm_err(&ptdev->base, "timeout waiting on %s:%llx power transition",
+			drm_err(ptdev->base, "timeout waiting on %s:%llx power transition",
 				blk_name, mask);
 			return ret;
 		}
@@ -333,7 +333,7 @@ int panthor_gpu_block_power_on(struct panthor_device *ptdev,
 						 val, (mask32 & val) == mask32,
 						 100, timeout_us);
 		if (ret) {
-			drm_err(&ptdev->base, "timeout waiting on %s:%llx readiness",
+			drm_err(ptdev->base, "timeout waiting on %s:%llx readiness",
 				blk_name, mask);
 			return ret;
 		}
@@ -360,7 +360,7 @@ int panthor_gpu_l2_power_on(struct panthor_device *ptdev)
 		 */
 		u64 core_mask = ~(ptdev->gpu_info.l2_present - 1) &
 				(ptdev->gpu_info.l2_present - 2);
-		drm_info_once(&ptdev->base, "using only 1st core group (%lu cores from %lu)\n",
+		drm_info_once(ptdev->base, "using only 1st core group (%lu cores from %lu)\n",
 			      hweight64(core_mask),
 			      hweight64(ptdev->gpu_info.shader_present));
 	}
@@ -384,7 +384,7 @@ int panthor_gpu_flush_caches(struct panthor_device *ptdev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&ptdev->gpu->reqs_lock, flags);
-	if (!drm_WARN_ON(&ptdev->base,
+	if (!drm_WARN_ON(ptdev->base,
 			 ptdev->gpu->pending_reqs & GPU_IRQ_CLEAN_CACHES_COMPLETED)) {
 		ptdev->gpu->pending_reqs |= GPU_IRQ_CLEAN_CACHES_COMPLETED;
 		gpu_write(ptdev, GPU_CMD, GPU_FLUSH_CACHES(l2, lsc, other));
@@ -404,7 +404,7 @@ int panthor_gpu_flush_caches(struct panthor_device *ptdev,
 	}
 
 	if (timedout) {
-		drm_err(&ptdev->base, "Flush caches timeout");
+		drm_err(ptdev->base, "Flush caches timeout");
 		return -ETIMEDOUT;
 	}
 
@@ -423,7 +423,7 @@ int panthor_gpu_soft_reset(struct panthor_device *ptdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ptdev->gpu->reqs_lock, flags);
-	if (!drm_WARN_ON(&ptdev->base,
+	if (!drm_WARN_ON(ptdev->base,
 			 ptdev->gpu->pending_reqs & GPU_IRQ_RESET_COMPLETED)) {
 		ptdev->gpu->pending_reqs |= GPU_IRQ_RESET_COMPLETED;
 		gpu_write(ptdev, GPU_INT_CLEAR, GPU_IRQ_RESET_COMPLETED);
@@ -444,7 +444,7 @@ int panthor_gpu_soft_reset(struct panthor_device *ptdev)
 	}
 
 	if (timedout) {
-		drm_err(&ptdev->base, "Soft reset timeout");
+		drm_err(ptdev->base, "Soft reset timeout");
 		return -ETIMEDOUT;
 	}
 

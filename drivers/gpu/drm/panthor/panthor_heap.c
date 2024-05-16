@@ -592,7 +592,7 @@ void panthor_heap_pool_destroy(struct panthor_heap_pool *pool)
 
 	down_write(&pool->lock);
 	xa_for_each(&pool->xa, i, heap)
-		drm_WARN_ON(&pool->ptdev->base, panthor_heap_destroy_locked(pool, i));
+		drm_WARN_ON(pool->ptdev->base, panthor_heap_destroy_locked(pool, i));
 
 	if (!IS_ERR_OR_NULL(pool->gpu_contexts))
 		panthor_kernel_bo_destroy(pool->gpu_contexts);
