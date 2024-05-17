@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use kernel::{
-    device, devres::Devres, error::code::*, firmware, fmt, pci, prelude::*, str::CString, sync::Arc,
+    alloc::{allocator::VmAllocator, flags::*},
+    device,
+    devres::Devres,
+    error::code::*,
+    firmware, fmt, pci,
+    prelude::*,
+    str::CString,
+    sync::Arc,
 };
 
 use core::fmt::Debug;
@@ -51,9 +58,9 @@ pub(crate) struct GpuSpec {
 /// Structure encapsulating the firmware blobs required for the GPU to operate.
 #[allow(dead_code)]
 pub(crate) struct Firmware {
-    booter_load: firmware::Firmware,
-    booter_unload: firmware::Firmware,
-    gsp: firmware::Firmware,
+    booter_load: Vec<u8, VmAllocator>,
+    booter_unload: Vec<u8, VmAllocator>,
+    gsp: Vec<u8, VmAllocator>,
 }
 
 /// Structure holding the resources required to operate the GPU.
@@ -148,9 +155,9 @@ impl Firmware {
         let gsp = firmware::Firmware::request(&fw_gsp_path, dev)?;
 
         Ok(Firmware {
-            booter_load,
-            booter_unload,
-            gsp,
+            booter_load: booter_load.copy(VmAllocator, GFP_KERNEL)?,
+            booter_unload: booter_unload.copy(VmAllocator, GFP_KERNEL)?,
+            gsp: gsp.copy(VmAllocator, GFP_KERNEL)?,
         })
     }
 }
