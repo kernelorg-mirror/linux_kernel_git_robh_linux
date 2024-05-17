@@ -4,7 +4,17 @@
 //!
 //! C header: [`include/linux/firmware.h`](../../../../include/linux/firmware.h")
 
-use crate::{bindings, device::Device, error::Error, error::Result, str::CStr, types::Opaque};
+use crate::{
+    alloc::{vec_ext::VecExtAlloc, AllocatorWithFlags, Flags},
+    bindings,
+    device::Device,
+    error::Error,
+    error::Result,
+    str::CStr,
+    types::Opaque,
+};
+
+use alloc::vec::Vec;
 
 /// Abstraction around a C firmware struct.
 ///
@@ -18,6 +28,12 @@ use crate::{bindings, device::Device, error::Error, error::Result, str::CStr, ty
 /// ```
 /// let fw = Firmware::request("path/to/firmware.bin", dev.as_ref())?;
 /// driver_load_firmware(fw.data());
+/// ```
+///
+/// ```
+/// let fw = Firmware::request("path/to/firmware.bin", dev.as_ref())?;
+/// let fw_buf = fw.copy(VmAllocator, GFP_KERNEL)?;
+/// driver_load_firmware(fw_buf.as_slice());
 /// ```
 pub struct Firmware(Opaque<*const bindings::firmware>);
 
@@ -56,6 +72,22 @@ impl Firmware {
     /// Returns the requested firmware as `&[u8]`.
     pub fn data(&self) -> &[u8] {
         unsafe { core::slice::from_raw_parts((*(*self.0.get())).data, self.size()) }
+    }
+
+    /// Copies the requested firmware into a new `Vec<u8, A>`, using the given allocator and flags
+    /// to allocate the vector's backing buffer.
+    pub fn copy<A: AllocatorWithFlags>(&self, alloc: A, flags: Flags) -> Result<Vec<u8, A>> {
+        let dst = Vec::<u8, A>::with_capacity_in(self.size(), alloc, flags);
+
+        match dst {
+            Ok(mut dst) => {
+                // Can't fail, we already reserved the required capacity.
+                let _ = dst.extend_from_slice(self.data(), flags);
+
+                Ok(dst)
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
