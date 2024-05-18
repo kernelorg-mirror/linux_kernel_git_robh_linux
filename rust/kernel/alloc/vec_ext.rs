@@ -5,6 +5,7 @@
 use super::{AllocatorWithFlags, Flags};
 use alloc::vec::Vec;
 use core::alloc::AllocError;
+use core::clone::Clone;
 use core::ptr;
 
 /// Extensions to [`Vec`].
@@ -74,6 +75,10 @@ pub trait VecExt<T>: Sized {
     /// # Ok::<(), Error>(())
     /// ```
     fn reserve(&mut self, additional: usize, flags: Flags) -> Result<(), AllocError>;
+
+    /// Resizes the `Vec` in-place so that `len` is equal to `new_len`.
+    fn resize(&mut self, new_len: usize, value: T, flags: Flags) -> Result<(), AllocError>
+        where T: Clone;
 }
 
 /// Extensions to [`Vec`].
@@ -128,6 +133,10 @@ pub trait VecExtAlloc<T, A: AllocatorWithFlags>: Sized {
     /// # Ok::<(), Error>(())
     /// ```
     fn reserve(&mut self, additional: usize, flags: Flags) -> Result<(), AllocError>;
+
+    /// Resizes the `Vec` in-place so that `len` is equal to `new_len`.
+    fn resize(&mut self, new_len: usize, value: T, flags: Flags) -> Result<(), AllocError>
+        where T: Clone;
 }
 
 impl<T, A> VecExtAlloc<T, A> for Vec<T, A>
@@ -191,6 +200,40 @@ where
         // SAFETY: `ptr` has been reallocated with the layout for `new_cap` elements. New cap
         // is greater than `cap`, so it continues to be >= `len`.
         unsafe { rebuild_alloc(self, alloc, new_ptr.cast::<T>(), len, new_cap) };
+        Ok(())
+    }
+
+    fn resize(&mut self, new_len: usize, value: T, flags: Flags) -> Result<(), AllocError>
+    where
+        T: Clone,
+    {
+        let len = self.len();
+
+        if new_len > len {
+            let n = new_len - len;
+            self.reserve(n, flags)?;
+
+            unsafe {
+                let mut ptr = self.as_mut_ptr().add(self.len());
+
+                // Write all elements except the last one
+                for _ in 1..n {
+                    ptr::write(ptr, value.clone());
+                    ptr = ptr.add(1);
+                    // Increment the length in every step in case clone() panics
+                    self.set_len(self.len() + 1);
+                }
+
+                if n > 0 {
+                    // We can write the last element directly without cloning needlessly
+                    ptr::write(ptr, value);
+                    self.set_len(self.len() + 1);
+                }
+            }
+        } else {
+            self.truncate(new_len);
+        }
+
         Ok(())
     }
 }
@@ -276,6 +319,40 @@ impl<T> VecExt<T> for Vec<T> {
             unsafe { rebuild(self, new_ptr.cast::<T>(), len, new_cap) };
             Ok(())
         }
+    }
+
+    fn resize(&mut self, new_len: usize, value: T, flags: Flags) -> Result<(), AllocError>
+    where
+        T: Clone,
+    {
+        let len = self.len();
+
+        if new_len > len {
+            let n = new_len - len;
+            self.reserve(n, flags)?;
+
+            unsafe {
+                let mut ptr = self.as_mut_ptr().add(self.len());
+
+                // Write all elements except the last one
+                for _ in 1..n {
+                    ptr::write(ptr, value.clone());
+                    ptr = ptr.add(1);
+                    // Increment the length in every step in case clone() panics
+                    self.set_len(self.len() + 1);
+                }
+
+                if n > 0 {
+                    // We can write the last element directly without cloning needlessly
+                    ptr::write(ptr, value);
+                    self.set_len(self.len() + 1);
+                }
+            }
+        } else {
+            self.truncate(new_len);
+        }
+
+        Ok(())
     }
 }
 
