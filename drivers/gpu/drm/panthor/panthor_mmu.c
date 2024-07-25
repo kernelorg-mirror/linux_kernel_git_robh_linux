@@ -1583,14 +1583,14 @@ void panthor_vm_pool_destroy(struct panthor_file *pfile)
  *
  * Return: 0 on success, a negative error code otherwise.
  */
-int panthor_vm_pool_create(struct panthor_file *pfile)
+struct panthor_vm_pool *panthor_vm_pool_create(void)
 {
-	pfile->vms = kzalloc(sizeof(*pfile->vms), GFP_KERNEL);
-	if (!pfile->vms)
-		return -ENOMEM;
+	struct panthor_vm_pool *vms = kzalloc(sizeof(*vms), GFP_KERNEL);
+	if (!vms)
+		return NULL;
 
-	xa_init_flags(&pfile->vms->xa, XA_FLAGS_ALLOC1);
-	return 0;
+	xa_init_flags(&vms->xa, XA_FLAGS_ALLOC1);
+	return vms;
 }
 
 /* dummy TLB ops, the real TLB flush happens in panthor_vm_flush_range() */

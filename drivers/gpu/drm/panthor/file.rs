@@ -57,15 +57,27 @@ extern "C" {
 }
 
 /// State associated with a client.
-pub(crate) struct File();
+#[repr(C)]
+pub(crate) struct File {
+    ptdev: *mut bindings::panthor_device,
+    // TODO make these embedded structs?
+    vms: *mut bindings::panthor_vm_pool,
+    groups: *mut bindings::panthor_group_pool,
+}
 
 impl drm::file::DriverFile for File {
     type Driver = PanthorDriver;
 
-    fn open(_dev: &DrmDevice<Self::Driver>) -> Result<Pin<Box<Self>>> {
+    fn open(dev: &DrmDevice<Self::Driver>) -> Result<Pin<Box<Self>>> {
+        let ptdev = dev.data().ptdev;
         pr_info!("DRM Device :: open()\n");
 
-        Ok(Box::into_pin(Box::new(Self(), GFP_KERNEL)?))
+        // TODO allocation error handling
+        Ok(Box::into_pin(Box::new(Self {
+            ptdev,
+            vms: unsafe { bindings::panthor_vm_pool_create() },
+            groups: unsafe { bindings::panthor_group_pool_create() }
+        }, GFP_KERNEL)?))
     }
 }
 

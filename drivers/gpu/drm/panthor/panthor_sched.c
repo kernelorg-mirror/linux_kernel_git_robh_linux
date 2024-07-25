@@ -3254,17 +3254,16 @@ int panthor_group_get_state(struct panthor_file *pfile,
 	return 0;
 }
 
-int panthor_group_pool_create(struct panthor_file *pfile)
+struct panthor_group_pool *panthor_group_pool_create(void)
 {
 	struct panthor_group_pool *gpool;
 
 	gpool = kzalloc(sizeof(*gpool), GFP_KERNEL);
 	if (!gpool)
-		return -ENOMEM;
+		return NULL;
 
 	xa_init_flags(&gpool->xa, XA_FLAGS_ALLOC1);
-	pfile->groups = gpool;
-	return 0;
+	return gpool;
 }
 
 void panthor_group_pool_destroy(struct panthor_file *pfile)

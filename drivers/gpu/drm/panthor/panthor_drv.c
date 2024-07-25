@@ -1272,25 +1272,22 @@ static int
 panthor_open(struct drm_device *ddev, struct drm_file *file)
 {
 	struct panthor_file *pfile;
-	int ret;
 
 	if (!try_module_get(THIS_MODULE))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	pfile = kzalloc(sizeof(*pfile), GFP_KERNEL);
-	if (!pfile) {
-		ret = -ENOMEM;
+	if (!pfile)
 		goto err_put_mod;
-	}
 
 	pfile->ptdev = ddev->dev_private;
 
-	ret = panthor_vm_pool_create(pfile);
-	if (ret)
+	pfile->vms = panthor_vm_pool_create();
+	if (!pfile->vms)
 		goto err_free_file;
 
-	ret = panthor_group_pool_create(pfile);
-	if (ret)
+	pfile->groups = panthor_group_pool_create();
+	if (!pfile->groups)
 		goto err_destroy_vm_pool;
 
 	file->driver_priv = pfile;
@@ -1304,7 +1301,7 @@ err_free_file:
 
 err_put_mod:
 	module_put(THIS_MODULE);
-	return ret;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void

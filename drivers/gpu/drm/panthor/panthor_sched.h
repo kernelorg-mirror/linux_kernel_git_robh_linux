@@ -34,7 +34,7 @@ struct panthor_vm *panthor_job_vm(struct drm_sched_job *sched_job);
 void panthor_job_put(struct drm_sched_job *job);
 void panthor_job_update_resvs(struct drm_exec *exec, struct drm_sched_job *job);
 
-int panthor_group_pool_create(struct panthor_file *pfile);
+struct panthor_group_pool *panthor_group_pool_create(void);
 void panthor_group_pool_destroy(struct panthor_file *pfile);
 
 int panthor_sched_init(struct panthor_device *ptdev);
