@@ -5,10 +5,14 @@
 //! C header: [`include/linux/device.h`](srctree/include/linux/device.h)
 
 use crate::{
+    alloc::KVec,
     bindings,
-    types::{ARef, Opaque},
+    error::{to_result, Result},
+    prelude::*,
+    str::{CStr, CString},
+    types::{ARef, Integer, Opaque},
 };
-use core::{fmt, ptr};
+use core::{ffi::c_void, fmt, mem, mem::MaybeUninit, ptr};
 
 #[cfg(CONFIG_PRINTK)]
 use crate::c_str;
@@ -179,6 +183,144 @@ impl Device {
                 &msg as *const _ as *const core::ffi::c_void,
             )
         };
+    }
+
+    /// Returns if a firmware property `name` is present
+    pub fn property_present(&self, name: &CStr) -> bool {
+        // SAFETY: `name` is non-null and null-terminated. `self.as_raw` is valid
+        // because `self` is valid.
+        unsafe { bindings::device_property_present(self.as_raw(), name.as_ptr() as *const i8) }
+    }
+
+    /// Returns if a firmware property `name` is true or false
+    pub fn property_read_bool(&self, name: &CStr) -> bool {
+        // TODO: replace with device_property_read_bool() which warns on non-bool properties
+        // SAFETY: `name` is non-null and null-terminated. `self.as_raw` is valid
+        // because `self` is valid.
+        unsafe { bindings::device_property_present(self.as_raw(), name.as_ptr() as *const i8) }
+    }
+
+    /// Returns the index of matching string `match_str` for firmware string property `name`
+    pub fn property_read_string(&self, name: &CStr) -> Result<CString> {
+        let mut str: *mut i8 = core::ptr::null_mut();
+        let pstr: *mut *mut i8 = &mut str;
+
+        // SAFETY: `name` is non-null and null-terminated. `self.as_raw` is
+        // valid because `self` is valid.
+        let ret = unsafe {
+            bindings::device_property_read_string(
+                self.as_raw(),
+                name.as_ptr() as *const i8,
+                pstr as _,
+            )
+        };
+        to_result(ret)?;
+
+        // SAFETY: `pstr` contains a non-null ptr on success
+        let str = unsafe { CStr::from_char_ptr(*pstr) };
+        Ok(str.try_into()?)
+    }
+
+
+    /// Returns the index of matching string `match_str` for firmware string property `name`
+    pub fn property_match_string(&self, name: &CStr, match_str: &CStr) -> Result<usize> {
+        // SAFETY: `name` and `match_str` are non-null and null-terminated. `self.as_raw` is
+        // valid because `self` is valid.
+        let ret = unsafe {
+            bindings::device_property_match_string(
+                self.as_raw(),
+                name.as_ptr() as *const i8,
+                match_str.as_ptr() as *const i8,
+            )
+        };
+        to_result(ret)?;
+        Ok(ret as usize)
+    }
+
+    /// Returns firmware property `name` integer scalar value
+    pub fn property_read<T: Integer>(&self, name: &CStr, default: Option<T>) -> Result<T> {
+        let default = default.map(|default| [default; 1]);
+
+        let val = Self::property_read_array(self, name, default)?;
+        Ok(val[0])
+    }
+
+    /// Returns firmware property `name` integer array values
+    pub fn property_read_array<T: Integer, const N: usize>(
+        &self,
+        name: &CStr,
+        default: Option<[T; N]>,
+    ) -> Result<[T; N]> {
+        let val: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
+
+        // SAFETY: `name` is non-null and null-terminated. `self.as_raw` is valid
+        // because `self` is valid. `val.as_ptr` is valid because `val` is valid.
+        let ret = unsafe {
+            bindings::device_property_read_int_array(
+                self.as_raw(),
+                name.as_ptr() as *const i8,
+                T::SIZE.try_into().unwrap(),
+                val.as_ptr() as *mut c_void,
+                val.len(),
+            )
+        };
+
+        let val: [T; N] = match ret {
+            // SAFETY: `val` is always initialized when device_property_read_int_array
+            // is successful.
+            0 => unsafe { mem::transmute_copy(&val) },
+            _ => match default {
+                Some(default) => default,
+                None => {
+                    dev_err!(
+                        self,
+                        "'{}' property is missing and no default given.\n",
+                        name
+                    );
+                    return Err(Error::from_errno(ret));
+                }
+            },
+        };
+        Ok(val)
+    }
+
+    /// Returns firmware property `name` integer array values in a KVec
+    pub fn property_read_array_vec<T: Integer>(&self, name: &CStr, len: usize) -> Result<KVec<T>> {
+        let mut val: KVec<T> = KVec::with_capacity(len, GFP_KERNEL)?;
+
+        // SAFETY: `name` is non-null and null-terminated. `self.as_raw` is valid
+        // because `self` is valid. `val.as_ptr` is valid because `val` is valid.
+        to_result(unsafe {
+            bindings::device_property_read_int_array(
+                self.as_raw(),
+                name.as_ptr() as *const i8,
+                T::SIZE.try_into().unwrap(),
+                val.as_ptr() as *mut c_void,
+                len,
+            )
+        })?;
+
+        // SAFETY: device_property_read_int_array() writes exactly `len` entries on success
+        unsafe { val.set_len(len) }
+        Ok(val)
+    }
+
+    /// Returns integer array length for firmware property `name`
+    pub fn property_count_elem<T: Integer>(&self, name: &CStr) -> Result<usize> {
+        // SAFETY: `name` is non-null and null-terminated. `self.as_raw` is valid
+        // because `self` is valid. Passing null pointer buffer is valid to obtain
+        // the number of elements in the property array.
+        let ret = unsafe {
+            bindings::device_property_read_int_array(
+                self.as_raw(),
+                name.as_ptr() as *const i8,
+                T::SIZE.try_into().unwrap(),
+                ptr::null_mut(),
+                0,
+            )
+        };
+        to_result(ret)?;
+        Ok(ret.try_into().unwrap())
     }
 }
 
