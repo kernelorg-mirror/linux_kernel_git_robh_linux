@@ -273,6 +273,17 @@ static int fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
 				  elem_size, val, nval);
 }
 
+/* For internal use by rust */
+int device_property_read_int_array(const struct device *dev,
+				   const char *propname,
+				   unsigned int elem_size, void *val,
+				   size_t nval)
+{
+	return fwnode_property_read_int_array(dev_fwnode(dev), propname, elem_size,
+					      val, nval);
+}
+EXPORT_SYMBOL_GPL(device_property_read_int_array);
+
 /**
  * fwnode_property_read_u8_array - return a u8 array property of firmware node
  * @fwnode: Firmware node to get the property of

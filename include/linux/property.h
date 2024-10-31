@@ -45,6 +45,8 @@ int device_property_read_u32_array(const struct device *dev, const char *propnam
 				   u32 *val, size_t nval);
 int device_property_read_u64_array(const struct device *dev, const char *propname,
 				   u64 *val, size_t nval);
+int device_property_read_int_array(const struct device *dev, const char *propname,
+				   unsigned int elem_size, void *val, size_t nval);
 int device_property_read_string_array(const struct device *dev, const char *propname,
 				      const char **val, size_t nval);
 int device_property_read_string(const struct device *dev, const char *propname,
