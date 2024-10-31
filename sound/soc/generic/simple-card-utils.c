@@ -139,10 +139,9 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	int n, i, ret;
 	u32 *p;
 
-	if (!of_property_read_bool(np, "dai-tdm-slot-width-map"))
-		return 0;
-
 	n = of_property_count_elems_of_size(np, "dai-tdm-slot-width-map", sizeof(u32));
+	if (n <= 0)
+		return 0;
 	if (n % 3) {
 		dev_err(dev, "Invalid number of cells for dai-tdm-slot-width-map\n");
 		return -EINVAL;
@@ -713,7 +712,7 @@ int simple_util_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop))
+	if (!of_property_present(node, prop))
 		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
@@ -731,7 +730,7 @@ int simple_util_parse_widgets(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "widgets");
 
-	if (of_property_read_bool(node, prop))
+	if (of_property_present(node, prop))
 		return snd_soc_of_parse_audio_simple_widgets(card, prop);
 
 	/* no widgets is not error */
