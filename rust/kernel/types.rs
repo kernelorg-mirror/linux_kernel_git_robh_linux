@@ -3,10 +3,11 @@
 //! Kernel types.
 
 use crate::init::{self, PinInit};
+use crate::transmute::{AsBytes, FromBytes};
 use core::{
     cell::UnsafeCell,
     marker::{PhantomData, PhantomPinned},
-    mem::{ManuallyDrop, MaybeUninit},
+    mem::{size_of, ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -495,6 +496,25 @@ pub enum Either<L, R> {
 
     /// Constructs an instance of [`Either`] containing a value of type `R`.
     Right(R),
+}
+
+/// Trait defined for all integer types similiar to `crate::num::Integer`
+pub trait Integer: FromBytes + AsBytes + Copy {
+    /// Size of the integer in bytes
+    const SIZE: usize;
+}
+
+macro_rules! impl_int {
+    ($($typ:ty),* $(,)?) => {$(
+        impl Integer for $typ {
+            const SIZE: usize = size_of::<Self>();
+        }
+    )*};
+}
+
+impl_int! {
+    u8, u16, u32, u64, usize,
+    i8, i16, i32, i64, isize,
 }
 
 /// Zero-sized type to mark types not [`Send`].
