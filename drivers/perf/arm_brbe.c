@@ -662,81 +662,39 @@ void brbe_disable(struct arm_pmu *arm_pmu)
 	isb();
 }
 
+static const int brbe_type_to_perf_type_map[BRBINFx_EL1_TYPE_DEBUG_EXIT + 1][2] = {
+	[BRBINFx_EL1_TYPE_DIRECT_UNCOND] = { PERF_BR_UNCOND, 0 },
+	[BRBINFx_EL1_TYPE_INDIRECT] = { PERF_BR_IND, 0 },
+	[BRBINFx_EL1_TYPE_DIRECT_LINK] = { PERF_BR_CALL, 0 },
+	[BRBINFx_EL1_TYPE_INDIRECT_LINK] = { PERF_BR_IND_CALL, 0 },
+	[BRBINFx_EL1_TYPE_RET] = { PERF_BR_RET, 0 },
+	[BRBINFx_EL1_TYPE_DIRECT_COND] = { PERF_BR_COND, 0 },
+	[BRBINFx_EL1_TYPE_CALL] = { PERF_BR_CALL, 0 },
+	[BRBINFx_EL1_TYPE_TRAP] = { PERF_BR_SYSCALL, 0 },
+	[BRBINFx_EL1_TYPE_ERET] = { PERF_BR_ERET, 0 },
+	[BRBINFx_EL1_TYPE_IRQ] = { PERF_BR_IRQ, 0 },
+	[BRBINFx_EL1_TYPE_SERROR] = { PERF_BR_SERROR, 0 },
+	[BRBINFx_EL1_TYPE_DEBUG_HALT] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_HALT },
+	[BRBINFx_EL1_TYPE_INSN_DEBUG] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_INST },
+	[BRBINFx_EL1_TYPE_DATA_DEBUG] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_DATA },
+	[BRBINFx_EL1_TYPE_ALIGN_FAULT] = { PERF_BR_EXTEND_ABI, PERF_BR_NEW_FAULT_ALGN },
+	[BRBINFx_EL1_TYPE_INSN_FAULT] = { PERF_BR_EXTEND_ABI, PERF_BR_NEW_FAULT_INST },
+	[BRBINFx_EL1_TYPE_DATA_FAULT] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_HALT },
+	[BRBINFx_EL1_TYPE_FIQ] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_FIQ },
+	[BRBINFx_EL1_TYPE_DEBUG_EXIT] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_EXIT },
+};
+
 static void brbe_set_perf_entry_type(struct perf_branch_entry *entry, u64 brbinf)
 {
 	int brbe_type = brbinf_get_type(brbinf);
 
-	switch (brbe_type) {
-	case BRBINFx_EL1_TYPE_DIRECT_UNCOND:
-		entry->type = PERF_BR_UNCOND;
-		break;
-	case BRBINFx_EL1_TYPE_INDIRECT:
-		entry->type = PERF_BR_IND;
-		break;
-	case BRBINFx_EL1_TYPE_DIRECT_LINK:
-		entry->type = PERF_BR_CALL;
-		break;
-	case BRBINFx_EL1_TYPE_INDIRECT_LINK:
-		entry->type = PERF_BR_IND_CALL;
-		break;
-	case BRBINFx_EL1_TYPE_RET:
-		entry->type = PERF_BR_RET;
-		break;
-	case BRBINFx_EL1_TYPE_DIRECT_COND:
-		entry->type = PERF_BR_COND;
-		break;
-	case BRBINFx_EL1_TYPE_CALL:
-		entry->type = PERF_BR_CALL;
-		break;
-	case BRBINFx_EL1_TYPE_TRAP:
-		entry->type = PERF_BR_SYSCALL;
-		break;
-	case BRBINFx_EL1_TYPE_ERET:
-		entry->type = PERF_BR_ERET;
-		break;
-	case BRBINFx_EL1_TYPE_IRQ:
-		entry->type = PERF_BR_IRQ;
-		break;
-	case BRBINFx_EL1_TYPE_DEBUG_HALT:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_ARM64_DEBUG_HALT;
-		break;
-	case BRBINFx_EL1_TYPE_SERROR:
-		entry->type = PERF_BR_SERROR;
-		break;
-	case BRBINFx_EL1_TYPE_INSN_DEBUG:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_ARM64_DEBUG_INST;
-		break;
-	case BRBINFx_EL1_TYPE_DATA_DEBUG:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_ARM64_DEBUG_DATA;
-		break;
-	case BRBINFx_EL1_TYPE_ALIGN_FAULT:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_NEW_FAULT_ALGN;
-		break;
-	case BRBINFx_EL1_TYPE_INSN_FAULT:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_NEW_FAULT_INST;
-		break;
-	case BRBINFx_EL1_TYPE_DATA_FAULT:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_NEW_FAULT_DATA;
-		break;
-	case BRBINFx_EL1_TYPE_FIQ:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_ARM64_FIQ;
-		break;
-	case BRBINFx_EL1_TYPE_DEBUG_EXIT:
-		entry->type = PERF_BR_EXTEND_ABI;
-		entry->new_type = PERF_BR_ARM64_DEBUG_EXIT;
-		break;
-	default:
-		pr_warn_once("%d - unknown branch type captured\n", brbe_type);
-		entry->type = PERF_BR_UNKNOWN;
-		break;
+	if (brbe_type <= BRBINFx_EL1_TYPE_DEBUG_EXIT) {
+		const int *br_type = brbe_type_to_perf_type_map[brbinf_get_type(brbinf)];
+		entry->type = br_type[0];
+		entry->new_type = br_type[1];
 	}
+	if (!entry->type)
+		pr_warn_once("%d - unknown branch type captured\n", brbe_type);
 }
 
 static int brbinf_get_perf_priv(u64 brbinf)
