@@ -1018,9 +1018,10 @@ static bool armv8pmu_branch_stack_init(struct perf_event *event)
 
 static void armv8pmu_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
-	struct arm_pmu *armpmu = to_arm_pmu(pmu_ctx->pmu);
+	struct arm_pmu *armpmu = *this_cpu_ptr(&cpu_armpmu);
+	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
 
-	if (armpmu->num_branch_records == 0)
+	if (!hw_events->branch_users)
 		return;
 
 	if (sched_in)
@@ -1391,7 +1392,7 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 	cpu_pmu->set_event_filter	= armv8pmu_set_event_filter;
 
 	cpu_pmu->pmu.event_idx		= armv8pmu_user_event_idx;
-	cpu_pmu->sched_task		= armv8pmu_sched_task;
+	cpu_pmu->pmu.sched_task		= armv8pmu_sched_task;
 	cpu_pmu->branch_stack_init	= armv8pmu_branch_stack_init;
 
 	cpu_pmu->name			= name;

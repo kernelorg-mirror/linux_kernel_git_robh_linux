@@ -99,7 +99,7 @@ static const struct pmu_irq_ops percpu_pmunmi_ops = {
 	.free_pmuirq = armpmu_free_percpu_pmunmi
 };
 
-static DEFINE_PER_CPU(struct arm_pmu *, cpu_armpmu);
+DEFINE_PER_CPU(struct arm_pmu *, cpu_armpmu);
 static DEFINE_PER_CPU(int, cpu_irq);
 static DEFINE_PER_CPU(const struct pmu_irq_ops *, cpu_irq_ops);
 
@@ -317,8 +317,10 @@ armpmu_del(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	if (has_branch_stack(event))
+	if (has_branch_stack(event)) {
 		hw_events->branch_users--;
+		perf_sched_cb_dec(event->pmu);
+	}
 
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
@@ -348,8 +350,10 @@ armpmu_add(struct perf_event *event, int flags)
 	/* The newly-allocated counter should be empty */
 	WARN_ON_ONCE(hw_events->events[idx]);
 
-	if (has_branch_stack(event))
+	if (has_branch_stack(event)) {
 		hw_events->branch_users++;
+		perf_sched_cb_inc(event->pmu);
+	}
 
 	event->hw.idx = idx;
 	hw_events->events[idx] = event;
@@ -523,14 +527,6 @@ static int armpmu_event_init(struct perf_event *event)
 	}
 
 	return __hw_perf_event_init(event);
-}
-
-static void armpmu_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
-{
-	struct arm_pmu *armpmu = to_arm_pmu(pmu_ctx->pmu);
-
-	if (armpmu->sched_task)
-		armpmu->sched_task(pmu_ctx, sched_in);
 }
 
 static void armpmu_enable(struct pmu *pmu)
@@ -879,7 +875,6 @@ struct arm_pmu *armpmu_alloc(void)
 	}
 
 	pmu->pmu = (struct pmu) {
-		.sched_task	= armpmu_sched_task,
 		.pmu_enable	= armpmu_enable,
 		.pmu_disable	= armpmu_disable,
 		.event_init	= armpmu_event_init,

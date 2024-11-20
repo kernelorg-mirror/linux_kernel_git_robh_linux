@@ -104,7 +104,6 @@ struct arm_pmu {
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);
 	int		(*map_event)(struct perf_event *event);
-	void		(*sched_task)(struct perf_event_pmu_context *pmu_ctx, bool sched_in);
 	bool		(*branch_stack_init)(struct perf_event *event);
 	DECLARE_BITMAP(cntr_mask, ARMPMU_MAX_HWEVENTS);
 	unsigned int	num_branch_records;
@@ -130,6 +129,8 @@ struct arm_pmu {
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
+
+DECLARE_PER_CPU(struct arm_pmu *, cpu_armpmu);
 
 u64 armpmu_event_update(struct perf_event *event);
 
