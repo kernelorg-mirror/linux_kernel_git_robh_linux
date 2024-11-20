@@ -84,13 +84,8 @@ struct brbe_regset {
 
 static void branch_mask_set_all(unsigned long *event_type_mask)
 {
-	int idx;
-
-	for (idx = PERF_BR_UNKNOWN; idx < PERF_BR_EXTEND_ABI; idx++)
-		set_bit(idx, event_type_mask);
-
-	for (idx = PERF_BR_NEW_FAULT_ALGN; idx < PERF_BR_NEW_MAX; idx++)
-		set_bit(PERF_BR_MAX + idx, event_type_mask);
+	bitmap_set(event_type_mask, PERF_BR_UNKNOWN, PERF_BR_SERROR + 1);
+	bitmap_set(event_type_mask, PERF_BR_MAX + PERF_BR_NEW_FAULT_ALGN, PERF_BR_NEW_MAX);
 }
 
 static void branch_mask_set_arch(unsigned long *event_type_mask)
