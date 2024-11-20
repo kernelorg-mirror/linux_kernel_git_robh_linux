@@ -6,7 +6,10 @@
  *
  * Author: Anshuman Khandual <anshuman.khandual@arm.com>
  */
-#include <linux/perf/arm_pmu.h>
+
+struct arm_pmu;
+struct perf_branch_stack;
+struct perf_event;
 
 #ifdef CONFIG_ARM64_BRBE
 void brbe_probe(struct arm_pmu *arm_pmu);
