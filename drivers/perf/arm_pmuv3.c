@@ -1007,15 +1007,6 @@ static int armv8pmu_user_event_idx(struct perf_event *event)
 	return event->hw.idx + 1;
 }
 
-static bool armv8pmu_branch_stack_init(struct perf_event *event)
-{
-	if (!brbe_branch_attr_valid(event))
-		return false;
-
-	event->attach_state |= PERF_ATTACH_SCHED_CB;
-	return true;
-}
-
 static void armv8pmu_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
 	struct arm_pmu *armpmu = *this_cpu_ptr(&cpu_armpmu);
@@ -1043,6 +1034,13 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	if (attr->exclude_idle) {
 		pr_debug("ARM performance counters do not support mode exclusion\n");
 		return -EOPNOTSUPP;
+	}
+
+	if (has_branch_stack(perf_event)) {
+		if (!brbe_branch_attr_valid(perf_event))
+			return -EOPNOTSUPP;
+
+		perf_event->attach_state |= PERF_ATTACH_SCHED_CB;
 	}
 
 	/*
@@ -1393,7 +1391,6 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 
 	cpu_pmu->pmu.event_idx		= armv8pmu_user_event_idx;
 	cpu_pmu->pmu.sched_task		= armv8pmu_sched_task;
-	cpu_pmu->branch_stack_init	= armv8pmu_branch_stack_init;
 
 	cpu_pmu->name			= name;
 	cpu_pmu->map_event		= map_event;

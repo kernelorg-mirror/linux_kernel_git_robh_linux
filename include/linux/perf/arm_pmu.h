@@ -104,7 +104,6 @@ struct arm_pmu {
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);
 	int		(*map_event)(struct perf_event *event);
-	bool		(*branch_stack_init)(struct perf_event *event);
 	DECLARE_BITMAP(cntr_mask, ARMPMU_MAX_HWEVENTS);
 	unsigned int	num_branch_records;
 	bool		secure_access; /* 32-bit ARM only */
