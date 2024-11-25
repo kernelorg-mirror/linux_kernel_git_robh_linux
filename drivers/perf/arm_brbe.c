@@ -826,12 +826,11 @@ static bool filter_branch_privilege(struct perf_branch_entry *entry, u64 branch_
 	return true;
 }
 
-static bool filter_branch_record(struct perf_event *event,
-				 struct perf_branch_entry *entry)
+static bool filter_branch_record(struct perf_branch_entry *entry,
+				 u64 branch_sample,
+				 unsigned long *event_type_mask)
 {
-	u64 branch_sample = event->attr.branch_sample_type;
 	DECLARE_BITMAP(entry_type_mask, PERF_BR_ARM64_MAX);
-	DECLARE_BITMAP(event_type_mask, PERF_BR_ARM64_MAX);
 
 	if (!filter_branch_privilege(entry, branch_sample))
 		return false;
@@ -839,12 +838,7 @@ static bool filter_branch_record(struct perf_event *event,
 	if (entry->type == PERF_BR_UNKNOWN)
 		return true;
 
-	if (branch_sample & PERF_SAMPLE_BRANCH_ANY)
-		return true;
-
 	branch_entry_mask(entry, entry_type_mask);
-
-	prepare_event_branch_type_mask(event, event_type_mask);
 	return bitmap_subset(entry_type_mask, event_type_mask, PERF_BR_ARM64_MAX);
 }
 
@@ -854,6 +848,9 @@ void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack, struct p
 	int nr_hw = brbidr_get_numrec(cpu_pmu->reg_brbidr);
 	int nr_banks = DIV_ROUND_UP(nr_hw, BRBE_BANK_MAX_ENTRIES);
 	int nr_filtered = 0;
+	DECLARE_BITMAP(event_type_mask, PERF_BR_ARM64_MAX);
+
+	prepare_event_branch_type_mask(event, event_type_mask);
 
 	for (int bank = 0; bank < nr_banks; bank++) {
 		int nr_remaining = nr_hw - (bank * BRBE_BANK_MAX_ENTRIES);
@@ -869,7 +866,7 @@ void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack, struct p
 				goto done;
 
 			perf_entry_from_brbe_regset(&pbe, &bregs, event);
-			if (!filter_branch_record(event, &pbe))
+			if (!filter_branch_record(&pbe, event->attr.branch_sample_type, event_type_mask))
 				continue;
 
 			branch_stack->entries[nr_filtered] = pbe;
