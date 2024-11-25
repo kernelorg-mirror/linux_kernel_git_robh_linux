@@ -104,20 +104,11 @@ static void branch_mask_set_arch(unsigned long *event_type_mask)
 static void branch_entry_mask(struct perf_branch_entry *entry,
 			      unsigned long *event_type_mask)
 {
-	u64 idx;
-
 	bitmap_zero(event_type_mask, PERF_BR_ARM64_MAX);
-	for (idx = PERF_BR_UNKNOWN; idx < PERF_BR_EXTEND_ABI; idx++) {
-		if (entry->type == idx)
-			set_bit(idx, event_type_mask);
-	}
-
-	if (entry->type == PERF_BR_EXTEND_ABI) {
-		for (idx = PERF_BR_NEW_FAULT_ALGN; idx < PERF_BR_NEW_MAX; idx++) {
-			if (entry->new_type == idx)
-				set_bit(PERF_BR_MAX + idx, event_type_mask);
-		}
-	}
+	if (entry->type < PERF_BR_EXTEND_ABI)
+		set_bit(entry->type, event_type_mask);
+	else if (entry->new_type < PERF_BR_NEW_MAX)
+		set_bit(PERF_BR_MAX + entry->new_type, event_type_mask);
 }
 
 static void prepare_event_branch_type_mask(struct perf_event *event,
