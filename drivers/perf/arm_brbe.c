@@ -402,73 +402,6 @@ static bool __read_brbe_regset(struct brbe_regset *entry, int idx)
 #define BRBE_PERF_BRANCH_FILTERS    (BRBE_ALLOWED_BRANCH_FILTERS	| \
 				     BRBE_EXCLUDE_BRANCH_FILTERS)
 
-bool brbe_branch_attr_valid(struct perf_event *event)
-{
-	u64 branch_type = event->attr.branch_sample_type;
-
-	/*
-	 * Ensure both perf branch filter allowed and exclude
-	 * masks are always in sync with the generic perf ABI.
-	 */
-	BUILD_BUG_ON(BRBE_PERF_BRANCH_FILTERS != (PERF_SAMPLE_BRANCH_MAX - 1));
-
-	if (branch_type & ~BRBE_ALLOWED_BRANCH_FILTERS) {
-		pr_debug_once("requested branch filter not supported 0x%llx\n", branch_type);
-		return false;
-	}
-
-	/*
-	 * If the event does not have at least one of the privilege
-	 * branch filters as in PERF_SAMPLE_BRANCH_PLM_ALL, the core
-	 * perf will adjust its value based on perf event's existing
-	 * privilege level via attr.exclude_[user|kernel|hv].
-	 *
-	 * As event->attr.branch_sample_type might have been changed
-	 * when the event reaches here, it is not possible to figure
-	 * out whether the event originally had HV privilege request
-	 * or got added via the core perf. Just report this situation
-	 * once and continue ignoring if there are other instances.
-	 */
-	if ((branch_type & PERF_SAMPLE_BRANCH_HV) && !is_kernel_in_hyp_mode())
-		pr_debug_once("hypervisor privilege filter not supported 0x%llx\n", branch_type);
-
-	return true;
-}
-
-static int brbe_attributes_probe(struct arm_pmu *armpmu, u32 brbe)
-{
-	u64 brbidr = read_sysreg_s(SYS_BRBIDR0_EL1);
-	int brbe_version, brbe_format, brbe_cc, brbe_nr;
-
-	brbe_version = brbe;
-	brbe_format = brbidr_get_format(brbidr);
-	brbe_cc = brbidr_get_cc_bits(brbidr);
-	brbe_nr = brbidr_get_numrec(brbidr);
-	armpmu->reg_brbidr = brbidr;
-
-	if (!valid_brbe_version(brbe_version) ||
-	    !valid_brbe_format(brbe_format) ||
-	    !valid_brbe_cc(brbe_cc) ||
-	    !valid_brbe_nr(brbe_nr))
-		return -EOPNOTSUPP;
-	return 0;
-}
-
-void brbe_probe(struct arm_pmu *armpmu)
-{
-	u64 aa64dfr0 = read_sysreg_s(SYS_ID_AA64DFR0_EL1);
-	u32 brbe;
-
-	brbe = cpuid_feature_extract_unsigned_field(aa64dfr0, ID_AA64DFR0_EL1_BRBE_SHIFT);
-	if (!brbe)
-		return;
-
-	if (brbe_attributes_probe(armpmu, brbe))
-		return;
-
-	armpmu->num_branch_records = brbidr_get_numrec(armpmu->reg_brbidr);
-}
-
 /*
  * BRBE supports the following functional branch type filters while
  * generating branch records. These branch filters can be enabled,
@@ -529,23 +462,7 @@ static u64 branch_type_to_brbfcr(int branch_type)
  */
 static u64 branch_type_to_brbcr(int branch_type)
 {
-	u64 brbcr = BRBCR_ELx_DEFAULT_TS;
-
-	/*
-	 * BRBE should be paused on PMU interrupt while tracing kernel
-	 * space to stop capturing further branch records. Otherwise
-	 * interrupt handler branch records might get into the samples
-	 * which is not desired.
-	 *
-	 * BRBE need not be paused on PMU interrupt while tracing only
-	 * the user space, because it will automatically be inside the
-	 * prohibited region. But even after PMU overflow occurs, the
-	 * interrupt could still take much more cycles, before it can
-	 * be taken and by that time BRBE will have been overwritten.
-	 * Hence enable pause on PMU interrupt mechanism even for user
-	 * only traces as well.
-	 */
-	brbcr |= BRBCR_ELx_FZP;
+	u64 brbcr = 0;
 
 	if (branch_type & PERF_SAMPLE_BRANCH_USER)
 		brbcr |= BRBCR_ELx_E0BRE;
@@ -592,19 +509,106 @@ static u64 branch_type_to_brbcr(int branch_type)
 	return brbcr & BRBCR_ELx_CONFIG_MASK;
 }
 
+bool brbe_branch_attr_valid(struct perf_event *event)
+{
+	u64 branch_type = event->attr.branch_sample_type;
+
+	/*
+	 * Ensure both perf branch filter allowed and exclude
+	 * masks are always in sync with the generic perf ABI.
+	 */
+	BUILD_BUG_ON(BRBE_PERF_BRANCH_FILTERS != (PERF_SAMPLE_BRANCH_MAX - 1));
+
+	if (branch_type & ~BRBE_ALLOWED_BRANCH_FILTERS) {
+		pr_debug_once("requested branch filter not supported 0x%llx\n", branch_type);
+		return false;
+	}
+
+	/*
+	 * If the event does not have at least one of the privilege
+	 * branch filters as in PERF_SAMPLE_BRANCH_PLM_ALL, the core
+	 * perf will adjust its value based on perf event's existing
+	 * privilege level via attr.exclude_[user|kernel|hv].
+	 *
+	 * As event->attr.branch_sample_type might have been changed
+	 * when the event reaches here, it is not possible to figure
+	 * out whether the event originally had HV privilege request
+	 * or got added via the core perf. Just report this situation
+	 * once and continue ignoring if there are other instances.
+	 */
+	if ((branch_type & PERF_SAMPLE_BRANCH_HV) && !is_kernel_in_hyp_mode())
+		pr_debug_once("hypervisor privilege filter not supported 0x%llx\n", branch_type);
+
+	event->hw.branch_reg.config = branch_type_to_brbfcr(event->attr.branch_sample_type);
+	event->hw.extra_reg.config = branch_type_to_brbcr(event->attr.branch_sample_type);
+
+	return true;
+}
+
+static int brbe_attributes_probe(struct arm_pmu *armpmu, u32 brbe)
+{
+	u64 brbidr = read_sysreg_s(SYS_BRBIDR0_EL1);
+	int brbe_version, brbe_format, brbe_cc, brbe_nr;
+
+	brbe_version = brbe;
+	brbe_format = brbidr_get_format(brbidr);
+	brbe_cc = brbidr_get_cc_bits(brbidr);
+	brbe_nr = brbidr_get_numrec(brbidr);
+	armpmu->reg_brbidr = brbidr;
+
+	if (!valid_brbe_version(brbe_version) ||
+	    !valid_brbe_format(brbe_format) ||
+	    !valid_brbe_cc(brbe_cc) ||
+	    !valid_brbe_nr(brbe_nr))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+void brbe_probe(struct arm_pmu *armpmu)
+{
+	u64 aa64dfr0 = read_sysreg_s(SYS_ID_AA64DFR0_EL1);
+	u32 brbe;
+
+	brbe = cpuid_feature_extract_unsigned_field(aa64dfr0, ID_AA64DFR0_EL1_BRBE_SHIFT);
+	if (!brbe)
+		return;
+
+	if (brbe_attributes_probe(armpmu, brbe))
+		return;
+
+	armpmu->num_branch_records = brbidr_get_numrec(armpmu->reg_brbidr);
+}
+
 void brbe_enable(struct arm_pmu *arm_pmu)
 {
 	struct pmu_hw_events *cpuc = this_cpu_ptr(arm_pmu->hw_events);
-	u64 brbfcr, brbcr;
-	u64 sample_type;
+	u64 brbfcr = 0, brbcr = BRBCR_ELx_DEFAULT_TS;
+
+	/*
+	 * BRBE should be paused on PMU interrupt while tracing kernel
+	 * space to stop capturing further branch records. Otherwise
+	 * interrupt handler branch records might get into the samples
+	 * which is not desired.
+	 *
+	 * BRBE need not be paused on PMU interrupt while tracing only
+	 * the user space, because it will automatically be inside the
+	 * prohibited region. But even after PMU overflow occurs, the
+	 * interrupt could still take much more cycles, before it can
+	 * be taken and by that time BRBE will have been overwritten.
+	 * Hence enable pause on PMU interrupt mechanism even for user
+	 * only traces as well.
+	 */
+	brbcr |= BRBCR_ELx_FZP;
 
 	/*
 	 * Merge the permitted branch filters of all events.
 	 */
 	for (int i = 0; i < ARMPMU_MAX_HWEVENTS; i++) {
 		struct perf_event *event = cpuc->events[i];
-		if (event && has_branch_stack(event))
-			sample_type |= event->attr.branch_sample_type;
+		if (event && has_branch_stack(event)) {
+			brbfcr |= event->hw.branch_reg.config;
+			brbcr |= event->hw.extra_reg.config;
+		}
 	}
 
 	/*
@@ -617,15 +621,11 @@ void brbe_enable(struct arm_pmu *arm_pmu)
 	 * BRBE gets configured with a new mismatched branch sample
 	 * type request, overriding any previous branch filters.
 	 */
-	brbfcr = read_sysreg_s(SYS_BRBFCR_EL1);
-	brbfcr &= ~BRBFCR_EL1_CONFIG_MASK;
-	brbfcr |= branch_type_to_brbfcr(sample_type);
+	brbfcr |= read_sysreg_s(SYS_BRBFCR_EL1) & ~BRBFCR_EL1_CONFIG_MASK;
 	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
 	isb();
 
-	brbcr = read_sysreg_s(SYS_BRBCR_EL1);
-	brbcr &= ~BRBCR_ELx_CONFIG_MASK;
-	brbcr |= branch_type_to_brbcr(sample_type);
+	brbcr |= read_sysreg_s(SYS_BRBCR_EL1) & ~BRBCR_ELx_CONFIG_MASK;
 	write_sysreg_s(brbcr, SYS_BRBCR_EL1);
 	isb();
 }
