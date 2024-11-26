@@ -432,7 +432,7 @@ static u64 branch_type_to_brbfcr(int branch_type)
 	if (branch_type & PERF_SAMPLE_BRANCH_CALL)
 		brbfcr |= BRBFCR_EL1_DIRCALL;
 
-	return brbfcr & BRBFCR_EL1_CONFIG_MASK;
+	return brbfcr;
 }
 
 /*
@@ -494,7 +494,7 @@ static u64 branch_type_to_brbcr(int branch_type)
 	if (branch_type & PERF_SAMPLE_BRANCH_ANY_RETURN)
 		brbcr |= BRBCR_ELx_ERTN;
 
-	return brbcr & BRBCR_ELx_CONFIG_MASK;
+	return brbcr;
 }
 
 bool brbe_branch_attr_valid(struct perf_event *event)
