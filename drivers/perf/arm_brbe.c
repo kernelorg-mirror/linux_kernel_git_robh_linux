@@ -88,19 +88,6 @@ static void branch_mask_set_all(unsigned long *event_type_mask)
 	bitmap_set(event_type_mask, PERF_BR_MAX + PERF_BR_NEW_FAULT_ALGN, PERF_BR_NEW_MAX);
 }
 
-static void branch_mask_set_arch(unsigned long *event_type_mask)
-{
-	set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_ALGN, event_type_mask);
-	set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_DATA, event_type_mask);
-	set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_INST, event_type_mask);
-
-	set_bit(PERF_BR_MAX + PERF_BR_ARM64_FIQ, event_type_mask);
-	set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_HALT, event_type_mask);
-	set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_EXIT, event_type_mask);
-	set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_INST, event_type_mask);
-	set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_DATA, event_type_mask);
-}
-
 static void branch_entry_mask(struct perf_branch_entry *entry,
 			      unsigned long *event_type_mask)
 {
@@ -117,13 +104,6 @@ static void prepare_event_branch_type_mask(struct perf_event *event,
 	u64 branch_sample = event->attr.branch_sample_type;
 
 	bitmap_zero(event_type_mask, PERF_BR_ARM64_MAX);
-
-	/*
-	 * The platform specific branch types might not follow event's
-	 * branch filter requests accurately. Let's add all of them as
-	 * acceptible branch types during the filtering process.
-	 */
-	branch_mask_set_arch(event_type_mask);
 
 	if (branch_sample & PERF_SAMPLE_BRANCH_ANY) {
 		branch_mask_set_all(event_type_mask);
@@ -150,6 +130,14 @@ static void prepare_event_branch_type_mask(struct perf_event *event,
 		set_bit(PERF_BR_IRQ, event_type_mask);
 		set_bit(PERF_BR_SYSCALL, event_type_mask);
 		set_bit(PERF_BR_SERROR, event_type_mask);
+		set_bit(PERF_BR_UNKNOWN, event_type_mask);	// Traps
+		set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_ALGN, event_type_mask);
+		set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_DATA, event_type_mask);
+		set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_INST, event_type_mask);
+		set_bit(PERF_BR_MAX + PERF_BR_ARM64_FIQ, event_type_mask);
+		set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_HALT, event_type_mask);
+		set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_INST, event_type_mask);
+		set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_DATA, event_type_mask);
 
 		if (branch_sample & PERF_SAMPLE_BRANCH_COND)
 			set_bit(PERF_BR_COND_CALL, event_type_mask);
