@@ -604,18 +604,10 @@ void brbe_enable(struct arm_pmu *arm_pmu)
 
 void brbe_disable(struct arm_pmu *arm_pmu)
 {
-	u64 brbfcr, brbcr;
+	u64 brbfcr;
 
-	/*
-	 * TODO: We shouldn't need to configure *both* registers to disable
-	 * recording.
-	 */
-
-	brbcr = read_sysreg_s(SYS_BRBCR_EL1);
 	brbfcr = read_sysreg_s(SYS_BRBFCR_EL1);
-	brbcr &= ~(BRBCR_ELx_E0BRE | BRBCR_ELx_ExBRE);
 	brbfcr |= BRBFCR_EL1_PAUSED;
-	write_sysreg_s(brbcr, SYS_BRBCR_EL1);
 	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
 	isb();
 }
