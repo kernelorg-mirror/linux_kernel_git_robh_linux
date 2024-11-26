@@ -711,22 +711,27 @@ static void capture_brbe_flags(struct perf_branch_entry *entry, struct perf_even
 		entry->priv = brbinf_get_perf_priv(brbinf);
 }
 
-static void perf_entry_from_brbe_regset(struct perf_branch_entry *entry,
-					struct brbe_regset *regset,
+static bool perf_entry_from_brbe_regset(int index, struct perf_branch_entry *entry,
 					struct perf_event *event)
 {
+	struct brbe_regset bregs;
+
+	if (!__read_brbe_regset(&bregs, index))
+		return false;
+
 	perf_clear_branch_entry_bitfields(entry);
-	if (brbe_record_is_complete(regset->brbinf)) {
-		entry->from = regset->brbsrc;
-		entry->to = regset->brbtgt;
-	} else if (brbe_record_is_source_only(regset->brbinf)) {
-		entry->from = regset->brbsrc;
+	if (brbe_record_is_complete(bregs.brbinf)) {
+		entry->from = bregs.brbsrc;
+		entry->to = bregs.brbtgt;
+	} else if (brbe_record_is_source_only(bregs.brbinf)) {
+		entry->from = bregs.brbsrc;
 		entry->to = 0;
-	} else if (brbe_record_is_target_only(regset->brbinf)) {
+	} else if (brbe_record_is_target_only(bregs.brbinf)) {
 		entry->from = 0;
-		entry->to = regset->brbtgt;
+		entry->to = bregs.brbtgt;
 	}
-	capture_brbe_flags(entry, event, regset->brbinf);
+	capture_brbe_flags(entry, event, bregs.brbinf);
+	return true;
 }
 
 static bool filter_branch_privilege(struct perf_branch_entry *entry, u64 branch_sample_type)
@@ -822,15 +827,14 @@ void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack, struct p
 
 		for (int i = 0; i < nr_this_bank; i++) {
 			struct perf_branch_entry pbe;
-			struct brbe_regset bregs;
 
-			if (!__read_brbe_regset(&bregs, i))
+			if (!perf_entry_from_brbe_regset(i, &pbe, event))
 				goto done;
 
-			perf_entry_from_brbe_regset(&pbe, &bregs, event);
 			if (!filter_branch_record(&pbe, event->attr.branch_sample_type, event_type_mask))
 				continue;
 
+			// struct copy
 			branch_stack->entries[nr_filtered] = pbe;
 			nr_filtered++;
 		}
