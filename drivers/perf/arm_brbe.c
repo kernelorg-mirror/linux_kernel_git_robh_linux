@@ -16,26 +16,12 @@
 				   BRBFCR_EL1_DIRCALL  | \
 				   BRBFCR_EL1_CONDDIR)
 
-#define BRBFCR_EL1_CONFIG_MASK    (BRBFCR_EL1_BANK_MASK | \
-				   BRBFCR_EL1_PAUSED    | \
-				   BRBFCR_EL1_EnI       | \
-				   BRBFCR_EL1_BRANCH_FILTERS)
-
 /*
  * BRBTS_EL1 is currently not used for branch stack implementation
  * purpose but BRBCR_ELx.TS needs to have a valid value from all
  * available options. BRBCR_ELx_TS_VIRTUAL is selected for this.
  */
 #define BRBCR_ELx_DEFAULT_TS      FIELD_PREP(BRBCR_ELx_TS_MASK, BRBCR_ELx_TS_VIRTUAL)
-
-#define BRBCR_ELx_CONFIG_MASK     (BRBCR_ELx_EXCEPTION | \
-				   BRBCR_ELx_ERTN      | \
-				   BRBCR_ELx_CC        | \
-				   BRBCR_ELx_MPRED     | \
-				   BRBCR_ELx_ExBRE     | \
-				   BRBCR_ELx_E0BRE     | \
-				   BRBCR_ELx_FZP       | \
-				   BRBCR_ELx_TS_MASK)
 
 /*
  * BRBE Buffer Organization
@@ -609,11 +595,9 @@ void brbe_enable(struct arm_pmu *arm_pmu)
 	 * BRBE gets configured with a new mismatched branch sample
 	 * type request, overriding any previous branch filters.
 	 */
-	brbfcr |= read_sysreg_s(SYS_BRBFCR_EL1) & ~BRBFCR_EL1_CONFIG_MASK;
 	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
 	isb();
 
-	brbcr |= read_sysreg_s(SYS_BRBCR_EL1) & ~BRBCR_ELx_CONFIG_MASK;
 	write_sysreg_s(brbcr, SYS_BRBCR_EL1);
 	isb();
 }
