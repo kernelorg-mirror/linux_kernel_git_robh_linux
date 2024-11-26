@@ -656,7 +656,7 @@ static const int brbe_type_to_perf_type_map[BRBINFx_EL1_TYPE_DEBUG_EXIT + 1][2] 
 	[BRBINFx_EL1_TYPE_RET] = { PERF_BR_RET, 0 },
 	[BRBINFx_EL1_TYPE_DIRECT_COND] = { PERF_BR_COND, 0 },
 	[BRBINFx_EL1_TYPE_CALL] = { PERF_BR_CALL, 0 },
-	[BRBINFx_EL1_TYPE_TRAP] = { PERF_BR_SYSCALL, 0 },
+	[BRBINFx_EL1_TYPE_TRAP] = { PERF_BR_UNKNOWN, 0 },
 	[BRBINFx_EL1_TYPE_ERET] = { PERF_BR_ERET, 0 },
 	[BRBINFx_EL1_TYPE_IRQ] = { PERF_BR_IRQ, 0 },
 	[BRBINFx_EL1_TYPE_SERROR] = { PERF_BR_SERROR, 0 },
@@ -679,8 +679,6 @@ static void brbe_set_perf_entry_type(struct perf_branch_entry *entry, u64 brbinf
 		entry->type = br_type[0];
 		entry->new_type = br_type[1];
 	}
-	if (!entry->type)
-		pr_warn_once("%d - unknown branch type captured\n", brbe_type);
 }
 
 static int brbinf_get_perf_priv(u64 brbinf)
