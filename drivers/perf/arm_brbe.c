@@ -290,9 +290,17 @@ static inline int brbidr_get_cc_bits(u64 brbidr)
 	return FIELD_GET(BRBIDR0_EL1_CC_MASK, brbidr);
 }
 
-void brbe_invalidate(void)
+static void brbe_invalidate_nosync(void)
 {
 	asm volatile(BRB_IALL_INSN);
+}
+
+void brbe_invalidate(void)
+{
+	// Ensure all branches before this point are recorded
+	isb();
+	brbe_invalidate_nosync();
+	// Ensure all branch records are invalidated after this point
 	isb();
 }
 
@@ -574,31 +582,25 @@ void brbe_enable(struct arm_pmu *arm_pmu)
 	}
 
 	/*
-	 * TODO: explain why we disacrd any prior branches
-	 * TODO: avoid the redundant ISB?
+	 * If the record buffer contains any branches, we've already read them
+	 * out and don't want to read them again.
+	 * No need to sync as we're already stopped.
 	 */
-	brbe_invalidate();
-
-	/*
-	 * BRBE gets configured with a new mismatched branch sample
-	 * type request, overriding any previous branch filters.
-	 */
-	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
-	isb();
+	brbe_invalidate_nosync();
+	isb(); // Make sure invalidate takes effect before enabling
 
 	if (is_kernel_in_hyp_mode())
 		write_sysreg_s(brbcr & ~BRBCR_ELx_ExBRE, SYS_BRBCR_EL12);
 	write_sysreg_s(brbcr, SYS_BRBCR_EL1);
-	isb();
+	isb(); // Ensure BRBCR_ELx settings take effect before unpausing
+
+	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
+	isb(); // Ensure enabling BRBE takes effect before enabling PMU
 }
 
 void brbe_disable(struct arm_pmu *arm_pmu)
 {
-	u64 brbfcr;
-
-	brbfcr = read_sysreg_s(SYS_BRBFCR_EL1);
-	brbfcr |= BRBFCR_EL1_PAUSED;
-	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
+	write_sysreg_s(BRBFCR_EL1_PAUSED, SYS_BRBFCR_EL1);
 	isb();
 }
 
