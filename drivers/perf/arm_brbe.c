@@ -494,6 +494,9 @@ bool brbe_branch_attr_valid(struct perf_event *event)
 	 */
 	BUILD_BUG_ON(BRBE_PERF_BRANCH_FILTERS != (PERF_SAMPLE_BRANCH_MAX - 1));
 
+	if (!event->attr.exclude_guest)
+		return false;
+
 	if (branch_type & ~BRBE_ALLOWED_BRANCH_FILTERS) {
 		pr_debug_once("requested branch filter not supported 0x%llx\n", branch_type);
 		return false;
