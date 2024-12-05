@@ -437,7 +437,7 @@ static u64 branch_type_to_brbfcr(int branch_type)
  */
 static u64 branch_type_to_brbcr(int branch_type)
 {
-	u64 brbcr = 0;
+	u64 brbcr = BRBCR_ELx_FZP | BRBCR_ELx_DEFAULT_TS;
 
 	if (branch_type & PERF_SAMPLE_BRANCH_USER)
 		brbcr |= BRBCR_ELx_E0BRE;
@@ -560,23 +560,7 @@ void brbe_probe(struct arm_pmu *armpmu)
 void brbe_enable(struct arm_pmu *arm_pmu)
 {
 	struct pmu_hw_events *cpuc = this_cpu_ptr(arm_pmu->hw_events);
-	u64 brbfcr = 0, brbcr = BRBCR_ELx_DEFAULT_TS;
-
-	/*
-	 * BRBE should be paused on PMU interrupt while tracing kernel
-	 * space to stop capturing further branch records. Otherwise
-	 * interrupt handler branch records might get into the samples
-	 * which is not desired.
-	 *
-	 * BRBE need not be paused on PMU interrupt while tracing only
-	 * the user space, because it will automatically be inside the
-	 * prohibited region. But even after PMU overflow occurs, the
-	 * interrupt could still take much more cycles, before it can
-	 * be taken and by that time BRBE will have been overwritten.
-	 * Hence enable pause on PMU interrupt mechanism even for user
-	 * only traces as well.
-	 */
-	brbcr |= BRBCR_ELx_FZP;
+	u64 brbfcr = 0, brbcr = 0;
 
 	/*
 	 * Merge the permitted branch filters of all events.
@@ -602,6 +586,8 @@ void brbe_enable(struct arm_pmu *arm_pmu)
 	write_sysreg_s(brbfcr, SYS_BRBFCR_EL1);
 	isb();
 
+	if (is_kernel_in_hyp_mode())
+		write_sysreg_s(brbcr & ~BRBCR_ELx_ExBRE, SYS_BRBCR_EL12);
 	write_sysreg_s(brbcr, SYS_BRBCR_EL1);
 	isb();
 }
