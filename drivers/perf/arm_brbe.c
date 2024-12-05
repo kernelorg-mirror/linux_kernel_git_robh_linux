@@ -68,11 +68,18 @@ struct brbe_regset {
 
 #define PERF_BR_ARM64_MAX (PERF_BR_MAX + PERF_BR_NEW_MAX)
 
-static void branch_mask_set_all(unsigned long *event_type_mask)
-{
-	bitmap_set(event_type_mask, PERF_BR_UNKNOWN, PERF_BR_SERROR + 1);
-	bitmap_set(event_type_mask, PERF_BR_MAX + PERF_BR_NEW_FAULT_ALGN, PERF_BR_NEW_MAX);
-}
+#define PERF_BR_ARM64_ALL (\
+	PERF_BR_COND | \
+	PERF_BR_UNCOND | \
+	PERF_BR_IND | \
+	PERF_BR_CALL | \
+	PERF_BR_IND_CALL | \
+	PERF_BR_RET | \
+	PERF_BR_SYSCALL | \
+	PERF_BR_COND_CALL | \
+	PERF_BR_COND_RET | \
+	PERF_BR_ERET | \
+	PERF_BR_IRQ)
 
 static void branch_entry_mask(struct perf_branch_entry *entry,
 			      unsigned long *event_type_mask)
@@ -89,12 +96,12 @@ static void prepare_event_branch_type_mask(struct perf_event *event,
 {
 	u64 branch_sample = event->attr.branch_sample_type;
 
-	bitmap_zero(event_type_mask, PERF_BR_ARM64_MAX);
-
 	if (branch_sample & PERF_SAMPLE_BRANCH_ANY) {
-		branch_mask_set_all(event_type_mask);
+		bitmap_from_u64(event_type_mask, PERF_BR_ARM64_ALL);
 		return;
 	}
+
+	bitmap_zero(event_type_mask, PERF_BR_ARM64_MAX);
 
 	if (branch_sample & PERF_SAMPLE_BRANCH_IND_JUMP)
 		set_bit(PERF_BR_IND, event_type_mask);
@@ -113,17 +120,10 @@ static void prepare_event_branch_type_mask(struct perf_event *event,
 
 	if (branch_sample & PERF_SAMPLE_BRANCH_ANY_CALL) {
 		set_bit(PERF_BR_CALL, event_type_mask);
-		set_bit(PERF_BR_IRQ, event_type_mask);
 		set_bit(PERF_BR_SYSCALL, event_type_mask);
-		set_bit(PERF_BR_SERROR, event_type_mask);
-		set_bit(PERF_BR_UNKNOWN, event_type_mask);	// Traps
-		set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_ALGN, event_type_mask);
-		set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_DATA, event_type_mask);
-		set_bit(PERF_BR_MAX + PERF_BR_NEW_FAULT_INST, event_type_mask);
-		set_bit(PERF_BR_MAX + PERF_BR_ARM64_FIQ, event_type_mask);
-		set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_HALT, event_type_mask);
-		set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_INST, event_type_mask);
-		set_bit(PERF_BR_MAX + PERF_BR_ARM64_DEBUG_DATA, event_type_mask);
+
+		if (!event->attr.exclude_kernel)
+			set_bit(PERF_BR_IRQ, event_type_mask);
 
 		if (branch_sample & PERF_SAMPLE_BRANCH_COND)
 			set_bit(PERF_BR_COND_CALL, event_type_mask);
@@ -131,8 +131,9 @@ static void prepare_event_branch_type_mask(struct perf_event *event,
 
 	if (branch_sample & PERF_SAMPLE_BRANCH_ANY_RETURN) {
 		set_bit(PERF_BR_RET, event_type_mask);
-		set_bit(PERF_BR_ERET, event_type_mask);
-		set_bit(PERF_BR_SYSRET, event_type_mask);
+
+		if (!event->attr.exclude_kernel)
+			set_bit(PERF_BR_ERET, event_type_mask);
 
 		if (branch_sample & PERF_SAMPLE_BRANCH_COND)
 			set_bit(PERF_BR_COND_RET, event_type_mask);
@@ -620,18 +621,8 @@ static const int brbe_type_to_perf_type_map[BRBINFx_EL1_TYPE_DEBUG_EXIT + 1][2] 
 	[BRBINFx_EL1_TYPE_RET] = { PERF_BR_RET, 0 },
 	[BRBINFx_EL1_TYPE_DIRECT_COND] = { PERF_BR_COND, 0 },
 	[BRBINFx_EL1_TYPE_CALL] = { PERF_BR_CALL, 0 },
-	[BRBINFx_EL1_TYPE_TRAP] = { PERF_BR_UNKNOWN, 0 },
 	[BRBINFx_EL1_TYPE_ERET] = { PERF_BR_ERET, 0 },
 	[BRBINFx_EL1_TYPE_IRQ] = { PERF_BR_IRQ, 0 },
-	[BRBINFx_EL1_TYPE_SERROR] = { PERF_BR_SERROR, 0 },
-	[BRBINFx_EL1_TYPE_DEBUG_HALT] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_HALT },
-	[BRBINFx_EL1_TYPE_INSN_DEBUG] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_INST },
-	[BRBINFx_EL1_TYPE_DATA_DEBUG] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_DATA },
-	[BRBINFx_EL1_TYPE_ALIGN_FAULT] = { PERF_BR_EXTEND_ABI, PERF_BR_NEW_FAULT_ALGN },
-	[BRBINFx_EL1_TYPE_INSN_FAULT] = { PERF_BR_EXTEND_ABI, PERF_BR_NEW_FAULT_INST },
-	[BRBINFx_EL1_TYPE_DATA_FAULT] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_HALT },
-	[BRBINFx_EL1_TYPE_FIQ] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_FIQ },
-	[BRBINFx_EL1_TYPE_DEBUG_EXIT] = { PERF_BR_EXTEND_ABI, PERF_BR_ARM64_DEBUG_EXIT },
 };
 
 static void brbe_set_perf_entry_type(struct perf_branch_entry *entry, u64 brbinf)
