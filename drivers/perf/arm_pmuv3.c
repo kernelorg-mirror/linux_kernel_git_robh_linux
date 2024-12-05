@@ -1122,7 +1122,7 @@ static void armv8pmu_reset(void *info)
 	armv8pmu_pmcr_write(pmcr);
 
 	if (cpu_pmu->num_branch_records > 0)
-		brbe_invalidate();
+		brbe_disable();
 }
 
 static int __armv8_pmuv3_map_event_id(struct arm_pmu *armpmu,
