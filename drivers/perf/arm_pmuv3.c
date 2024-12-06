@@ -1037,7 +1037,7 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	}
 
 	if (has_branch_stack(perf_event)) {
-		if (!brbe_branch_attr_valid(perf_event))
+		if (!brbe_num_branch_records(cpu_pmu) || !brbe_branch_attr_valid(perf_event))
 			return -EOPNOTSUPP;
 
 		perf_event->attach_state |= PERF_ATTACH_SCHED_CB;
@@ -1121,7 +1121,7 @@ static void armv8pmu_reset(void *info)
 
 	armv8pmu_pmcr_write(pmcr);
 
-	if (cpu_pmu->num_branch_records > 0)
+	if (brbe_num_branch_records(cpu_pmu))
 		brbe_disable();
 }
 
@@ -1290,7 +1290,7 @@ static int branch_records_alloc(struct arm_pmu *armpmu)
 	 * TODO: fix the sizing
 	 */
 	struct perf_branch_stack *branch_stack;
-	size_t size = struct_size(branch_stack, entries, armpmu->num_branch_records);
+	size_t size = struct_size(branch_stack, entries, brbe_num_branch_records(armpmu));
 	int cpu;
 
 	branch_stack = __alloc_percpu_gfp(size, __alignof__(*branch_stack),
@@ -1326,7 +1326,7 @@ static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
 	if (!probe.present)
 		return -ENODEV;
 
-	if (cpu_pmu->num_branch_records > 0) {
+	if (brbe_num_branch_records(cpu_pmu)) {
 		ret = branch_records_alloc(cpu_pmu);
 		if (ret)
 			return ret;

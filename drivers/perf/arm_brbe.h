@@ -13,6 +13,7 @@ struct perf_event;
 
 #ifdef CONFIG_ARM64_BRBE
 void brbe_probe(struct arm_pmu *arm_pmu);
+unsigned int brbe_num_branch_records(const struct arm_pmu *armpmu);
 void brbe_invalidate(void);
 
 void brbe_enable(struct arm_pmu *arm_pmu);
@@ -23,6 +24,11 @@ void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack,
 				struct perf_event *event);
 #else
 static inline void brbe_probe(struct arm_pmu *arm_pmu) { }
+static inline unsigned int brbe_num_branch_records(const struct arm_pmu *armpmu)
+{
+	return 0;
+}
+
 static inline void brbe_invalidate(void) { }
 
 static inline void brbe_enable(struct arm_pmu *arm_pmu) { };

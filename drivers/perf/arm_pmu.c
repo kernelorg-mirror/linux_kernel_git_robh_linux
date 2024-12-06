@@ -519,9 +519,6 @@ static int armpmu_event_init(struct perf_event *event)
 		!cpumask_test_cpu(event->cpu, &armpmu->supported_cpus))
 		return -ENOENT;
 
-	if (has_branch_stack(event) && !armpmu->num_branch_records)
-			return -EOPNOTSUPP;
-
 	return __hw_perf_event_init(event);
 }
 

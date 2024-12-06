@@ -284,21 +284,6 @@ static inline int brbinf_get_el(u64 brbinf)
 	return FIELD_GET(BRBINFx_EL1_EL_MASK, brbinf);
 }
 
-static inline int brbidr_get_numrec(u64 brbidr)
-{
-	return FIELD_GET(BRBIDR0_EL1_NUMREC_MASK, brbidr);
-}
-
-static inline int brbidr_get_format(u64 brbidr)
-{
-	return FIELD_GET(BRBIDR0_EL1_FORMAT_MASK, brbidr);
-}
-
-static inline int brbidr_get_cc_bits(u64 brbidr)
-{
-	return FIELD_GET(BRBIDR0_EL1_CC_MASK, brbidr);
-}
-
 static void brbe_invalidate_nosync(void)
 {
 	asm volatile(BRB_IALL_INSN);
@@ -329,6 +314,17 @@ static bool valid_brbe_cc(int brbe_cc)
 static bool valid_brbe_format(int brbe_format)
 {
 	return brbe_format == BRBIDR0_EL1_FORMAT_FORMAT_0;
+}
+
+static bool valid_brbidr(u64 brbidr)
+{
+	int brbe_format, brbe_cc, brbe_nr;
+
+	brbe_format = FIELD_GET(BRBIDR0_EL1_FORMAT_MASK, brbidr);
+	brbe_cc = FIELD_GET(BRBIDR0_EL1_CC_MASK, brbidr);
+	brbe_nr = FIELD_GET(BRBIDR0_EL1_NUMREC_MASK, brbidr);
+
+	return valid_brbe_format(brbe_format) && valid_brbe_cc(brbe_cc) && valid_brbe_nr(brbe_nr);
 }
 
 static bool valid_brbe_version(int brbe_version)
@@ -540,23 +536,9 @@ bool brbe_branch_attr_valid(struct perf_event *event)
 	return true;
 }
 
-static int brbe_attributes_probe(struct arm_pmu *armpmu, u32 brbe)
+unsigned int brbe_num_branch_records(const struct arm_pmu *armpmu)
 {
-	u64 brbidr = read_sysreg_s(SYS_BRBIDR0_EL1);
-	int brbe_version, brbe_format, brbe_cc, brbe_nr;
-
-	brbe_version = brbe;
-	brbe_format = brbidr_get_format(brbidr);
-	brbe_cc = brbidr_get_cc_bits(brbidr);
-	brbe_nr = brbidr_get_numrec(brbidr);
-	armpmu->reg_brbidr = brbidr;
-
-	if (!valid_brbe_version(brbe_version) ||
-	    !valid_brbe_format(brbe_format) ||
-	    !valid_brbe_cc(brbe_cc) ||
-	    !valid_brbe_nr(brbe_nr))
-		return -EOPNOTSUPP;
-	return 0;
+	return FIELD_GET(BRBIDR0_EL1_NUMREC_MASK, armpmu->reg_brbidr);
 }
 
 void brbe_probe(struct arm_pmu *armpmu)
@@ -565,16 +547,17 @@ void brbe_probe(struct arm_pmu *armpmu)
 	u32 brbe;
 
 	brbe = cpuid_feature_extract_unsigned_field(aa64dfr0, ID_AA64DFR0_EL1_BRBE_SHIFT);
-	if (!brbe)
+	if (!valid_brbe_version(brbe))
 		return;
 
-	if (brbe_attributes_probe(armpmu, brbe))
+	u64 brbidr = read_sysreg_s(SYS_BRBIDR0_EL1);
+	if (!valid_brbidr(brbidr))
 		return;
 
-	armpmu->num_branch_records = brbidr_get_numrec(armpmu->reg_brbidr);
+	armpmu->reg_brbidr = brbidr;
 }
 
-void brbe_enable(struct arm_pmu *arm_pmu)
+void brbe_enable(const struct arm_pmu *arm_pmu)
 {
 	struct pmu_hw_events *cpuc = this_cpu_ptr(arm_pmu->hw_events);
 	u64 brbfcr = 0, brbcr = 0;
