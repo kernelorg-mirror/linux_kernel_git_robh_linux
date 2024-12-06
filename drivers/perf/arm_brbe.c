@@ -598,7 +598,7 @@ void brbe_enable(struct arm_pmu *arm_pmu)
 	isb(); // Ensure enabling BRBE takes effect before enabling PMU
 }
 
-void brbe_disable(struct arm_pmu *arm_pmu)
+void brbe_disable(void)
 {
 	write_sysreg_s(BRBFCR_EL1_PAUSED, SYS_BRBFCR_EL1);
 	isb();

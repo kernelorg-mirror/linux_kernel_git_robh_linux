@@ -16,7 +16,7 @@ void brbe_probe(struct arm_pmu *arm_pmu);
 void brbe_invalidate(void);
 
 void brbe_enable(struct arm_pmu *arm_pmu);
-void brbe_disable(struct arm_pmu *arm_pmu);
+void brbe_disable(void);
 
 bool brbe_branch_attr_valid(struct perf_event *event);
 void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack,
@@ -26,7 +26,7 @@ static inline void brbe_probe(struct arm_pmu *arm_pmu) { }
 static inline void brbe_invalidate(void) { }
 
 static inline void brbe_enable(struct arm_pmu *arm_pmu) { };
-static inline void brbe_disable(struct arm_pmu *arm_pmu) { };
+static inline void brbe_disable(void) { };
 
 static inline bool brbe_branch_attr_valid(struct perf_event *event)
 {

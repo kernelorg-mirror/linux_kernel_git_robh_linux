@@ -828,7 +828,7 @@ static void armv8pmu_stop(struct arm_pmu *cpu_pmu)
 	struct pmu_hw_events *hw_events = this_cpu_ptr(cpu_pmu->hw_events);
 
 	if (hw_events->branch_users)
-		brbe_disable(cpu_pmu);
+		brbe_disable();
 
 	/* Disable all counters */
 	armv8pmu_pmcr_write(armv8pmu_pmcr_read() & ~ARMV8_PMU_PMCR_E);
