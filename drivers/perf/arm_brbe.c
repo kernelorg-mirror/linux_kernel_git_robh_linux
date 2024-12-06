@@ -81,7 +81,7 @@ struct brbe_regset {
 	PERF_BR_ERET | \
 	PERF_BR_IRQ)
 
-static void branch_entry_mask(struct perf_branch_entry *entry,
+static void branch_entry_mask(const struct perf_branch_entry *entry,
 			      unsigned long *event_type_mask)
 {
 	bitmap_zero(event_type_mask, PERF_BR_ARM64_MAX);
@@ -91,7 +91,7 @@ static void branch_entry_mask(struct perf_branch_entry *entry,
 		set_bit(PERF_BR_MAX + entry->new_type, event_type_mask);
 }
 
-static void prepare_event_branch_type_mask(struct perf_event *event,
+static void prepare_event_branch_type_mask(const struct perf_event *event,
 					   unsigned long *event_type_mask)
 {
 	u64 branch_sample = event->attr.branch_sample_type;
@@ -638,7 +638,7 @@ static int brbinf_get_perf_priv(u64 brbinf)
 	}
 }
 
-static void capture_brbe_flags(struct perf_branch_entry *entry, struct perf_event *event,
+static void capture_brbe_flags(struct perf_branch_entry *entry, const struct perf_event *event,
 			       u64 brbinf)
 {
 	brbe_set_perf_entry_type(entry, brbinf);
@@ -686,7 +686,7 @@ static void capture_brbe_flags(struct perf_branch_entry *entry, struct perf_even
 }
 
 static bool perf_entry_from_brbe_regset(int index, struct perf_branch_entry *entry,
-					struct perf_event *event)
+					const struct perf_event *event)
 {
 	struct brbe_regset bregs;
 
@@ -708,7 +708,7 @@ static bool perf_entry_from_brbe_regset(int index, struct perf_branch_entry *ent
 	return true;
 }
 
-static bool filter_branch_privilege(struct perf_branch_entry *entry, u64 branch_sample_type)
+static bool filter_branch_privilege(const struct perf_branch_entry *entry, u64 branch_sample_type)
 {
 	/*
 	 * Retrieve the privilege level branch filter requests
@@ -767,9 +767,9 @@ static bool filter_branch_privilege(struct perf_branch_entry *entry, u64 branch_
 	return true;
 }
 
-static bool filter_branch_record(struct perf_branch_entry *entry,
+static bool filter_branch_record(const struct perf_branch_entry *entry,
 				 u64 branch_sample,
-				 unsigned long *event_type_mask)
+				 const unsigned long *event_type_mask)
 {
 	DECLARE_BITMAP(entry_type_mask, PERF_BR_ARM64_MAX);
 
@@ -783,10 +783,10 @@ static bool filter_branch_record(struct perf_branch_entry *entry,
 	return bitmap_subset(entry_type_mask, event_type_mask, PERF_BR_ARM64_MAX);
 }
 
-void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack, struct perf_event *event)
+void brbe_read_filtered_entries(struct perf_branch_stack *branch_stack, const struct perf_event *event)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	int nr_hw = brbidr_get_numrec(cpu_pmu->reg_brbidr);
+	int nr_hw = brbe_num_branch_records(cpu_pmu);
 	int nr_banks = DIV_ROUND_UP(nr_hw, BRBE_BANK_MAX_ENTRIES);
 	int nr_filtered = 0;
 	DECLARE_BITMAP(event_type_mask, PERF_BR_ARM64_MAX);
