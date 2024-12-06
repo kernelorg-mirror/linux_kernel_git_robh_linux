@@ -253,8 +253,9 @@ static inline int brbinf_get_lastfailed(u64 brbinf)
 	return FIELD_GET(BRBINFx_EL1_LASTFAILED_MASK, brbinf);
 }
 
-static inline int brbinf_get_cycles(u64 brbinf)
+static inline u16 brbinf_get_cycles(u64 brbinf)
 {
+	u32 exp, mant, cycles;
 	/*
 	 * Captured cycle count is unknown and hence
 	 * should not be passed on to userspace.
@@ -262,7 +263,15 @@ static inline int brbinf_get_cycles(u64 brbinf)
 	if (brbinf & BRBINFx_EL1_CCU)
 		return 0;
 
-	return FIELD_GET(BRBINFx_EL1_CC_MASK, brbinf);
+	exp = FIELD_GET(BRBINFx_EL1_CC_EXP_MASK, brbinf);
+	mant = FIELD_GET(BRBINFx_EL1_CC_MANT_MASK, brbinf);
+
+	if (!exp)
+		return mant;
+
+	cycles = (mant | 0x100) << (exp - 1);
+
+	return (cycles > U16_MAX) ? U16_MAX : cycles;
 }
 
 static inline int brbinf_get_type(u64 brbinf)

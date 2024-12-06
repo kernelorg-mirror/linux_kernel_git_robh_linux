@@ -1029,7 +1029,8 @@ EndSysreg
 SysregFields BRBINFx_EL1
 Res0	63:47
 Field	46	CCU
-Field	45:32	CC
+Field	45:40	CC_EXP
+Field	39:32	CC_MANT
 Res0	31:18
 Field	17	LASTFAILED
 Field	16	T
