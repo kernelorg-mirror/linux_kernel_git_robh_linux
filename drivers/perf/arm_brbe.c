@@ -199,7 +199,7 @@ static inline u64 get_brbsrc_reg(int idx)
 
 #define RETURN_READ_BRBTGTN(n) \
 	return read_sysreg_s(SYS_BRBTGT_EL1(n))
-static inline u64 get_brbtgt_reg(int idx)
+static u64 get_brbtgt_reg(int idx)
 {
 	BRBE_REGN_SWITCH(idx, RETURN_READ_BRBTGTN);
 	return 0;
@@ -207,53 +207,53 @@ static inline u64 get_brbtgt_reg(int idx)
 
 #define RETURN_READ_BRBINFN(n) \
 	return read_sysreg_s(SYS_BRBINF_EL1(n))
-static inline u64 get_brbinf_reg(int idx)
+static u64 get_brbinf_reg(int idx)
 {
 	BRBE_REGN_SWITCH(idx, RETURN_READ_BRBINFN);
 	return 0;
 }
 
-static inline u64 brbe_record_valid(u64 brbinf)
+static u64 brbe_record_valid(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_VALID_MASK, brbinf);
 }
 
-static inline bool brbe_invalid(u64 brbinf)
+static bool brbe_invalid(u64 brbinf)
 {
 	return brbe_record_valid(brbinf) == BRBINFx_EL1_VALID_NONE;
 }
 
-static inline bool brbe_record_is_complete(u64 brbinf)
+static bool brbe_record_is_complete(u64 brbinf)
 {
 	return brbe_record_valid(brbinf) == BRBINFx_EL1_VALID_FULL;
 }
 
-static inline bool brbe_record_is_source_only(u64 brbinf)
+static bool brbe_record_is_source_only(u64 brbinf)
 {
 	return brbe_record_valid(brbinf) == BRBINFx_EL1_VALID_SOURCE;
 }
 
-static inline bool brbe_record_is_target_only(u64 brbinf)
+static bool brbe_record_is_target_only(u64 brbinf)
 {
 	return brbe_record_valid(brbinf) == BRBINFx_EL1_VALID_TARGET;
 }
 
-static inline int brbinf_get_in_tx(u64 brbinf)
+static int brbinf_get_in_tx(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_T_MASK, brbinf);
 }
 
-static inline int brbinf_get_mispredict(u64 brbinf)
+static int brbinf_get_mispredict(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_MPRED_MASK, brbinf);
 }
 
-static inline int brbinf_get_lastfailed(u64 brbinf)
+static int brbinf_get_lastfailed(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_LASTFAILED_MASK, brbinf);
 }
 
-static inline u16 brbinf_get_cycles(u64 brbinf)
+static u16 brbinf_get_cycles(u64 brbinf)
 {
 	u32 exp, mant, cycles;
 	/*
@@ -274,12 +274,12 @@ static inline u16 brbinf_get_cycles(u64 brbinf)
 	return (cycles > U16_MAX) ? U16_MAX : cycles;
 }
 
-static inline int brbinf_get_type(u64 brbinf)
+static int brbinf_get_type(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_TYPE_MASK, brbinf);
 }
 
-static inline int brbinf_get_el(u64 brbinf)
+static int brbinf_get_el(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_EL_MASK, brbinf);
 }
