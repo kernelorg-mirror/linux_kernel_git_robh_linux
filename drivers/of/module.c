@@ -53,29 +53,15 @@ ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
 
 int of_request_module(const struct device_node *np)
 {
-	char *str;
-	ssize_t size;
-	int ret;
+	char *str __free(kfree);
 
 	if (!np)
 		return -ENODEV;
 
-	size = of_modalias(np, NULL, 0);
-	if (size < 0)
-		return size;
-
-	/* Reserve an additional byte for the trailing '\0' */
-	size++;
-
-	str = kmalloc(size, GFP_KERNEL);
+	str = kasprintf(GFP_KERNEL, "%pOFm", np);
 	if (!str)
 		return -ENOMEM;
 
-	of_modalias(np, str, size);
-	str[size - 1] = '\0';
-	ret = request_module(str);
-	kfree(str);
-
-	return ret;
+	return request_module(str);
 }
 EXPORT_SYMBOL_GPL(of_request_module);

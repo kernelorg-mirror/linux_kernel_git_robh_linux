@@ -199,14 +199,9 @@ ssize_t of_device_modalias(struct device *dev, char *str, ssize_t len)
 	if (!dev || !dev->of_node || dev->of_node_reused)
 		return -ENODEV;
 
-	sl = of_modalias(dev->of_node, str, len - 2);
-	if (sl < 0)
-		return sl;
-	if (sl > len - 2)
+	sl = snprintf(str, len, "%pOFm\n", dev->of_node);
+	if (sl >= len)
 		return -ENOMEM;
-
-	str[sl++] = '\n';
-	str[sl] = 0;
 	return sl;
 }
 EXPORT_SYMBOL_GPL(of_device_modalias);
@@ -256,24 +251,10 @@ EXPORT_SYMBOL_GPL(of_device_uevent);
 
 int of_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *env)
 {
-	int sl;
-
 	if ((!dev) || (!dev->of_node) || dev->of_node_reused)
 		return -ENODEV;
 
-	/* Devicetree modalias is tricky, we add it in 2 steps */
-	if (add_uevent_var(env, "MODALIAS="))
-		return -ENOMEM;
-
-	sl = of_modalias(dev->of_node, &env->buf[env->buflen-1],
-			 sizeof(env->buf) - env->buflen);
-	if (sl < 0)
-		return sl;
-	if (sl >= (sizeof(env->buf) - env->buflen))
-		return -ENOMEM;
-	env->buflen += sl;
-
-	return 0;
+	return add_uevent_var(env, "MODALIAS=%pOFm", dev->of_node);
 }
 EXPORT_SYMBOL_GPL(of_device_uevent_modalias);
 

@@ -2169,10 +2169,10 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 
 	/* simple case without anything any more format specifiers */
 	fmt++;
-	if (fmt[0] == '\0' || strcspn(fmt,"fnpPFcC") > 0)
+	if (fmt[0] == '\0' || strcspn(fmt,"fnpPFcCm") > 0)
 		fmt = "f";
 
-	for (pass = false; strspn(fmt,"fnpPFcC"); fmt++, pass = true) {
+	for (pass = false; strspn(fmt,"fnpPFcCm"); fmt++, pass = true) {
 		int precision;
 		if (pass) {
 			if (buf < end)
@@ -2225,6 +2225,11 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 
 				has_mult = true;
 			}
+			break;
+		case 'm':
+			ssize_t len = of_modalias(dn, buf, end - buf);
+			if (len > 0)
+				buf += len;
 			break;
 		default:
 			break;
