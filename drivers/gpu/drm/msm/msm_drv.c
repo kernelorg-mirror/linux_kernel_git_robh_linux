@@ -8,7 +8,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fault-inject.h>
 #include <linux/debugfs.h>
-#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
 
 #include <drm/clients/drm_client_setup.h>
@@ -126,8 +126,8 @@ bool msm_use_mmu(struct drm_device *dev)
 static int msm_init_vram(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	struct device_node *node;
 	unsigned long size = 0;
+	struct resource r;
 	int ret = 0;
 
 	/* In the device-tree world, we could have a 'memory-region'
@@ -147,14 +147,9 @@ static int msm_init_vram(struct drm_device *dev)
 	 *     load and do initial modeset)
 	 */
 
-	node = of_parse_phandle(dev->dev->of_node, "memory-region", 0);
-	if (node) {
-		struct resource r;
-		ret = of_address_to_resource(node, 0, &r);
-		of_node_put(node);
-		if (ret)
-			return ret;
-		size = r.end - r.start + 1;
+	ret = of_reserved_mem_region_to_resource(dev->dev->of_node, 0, &r);
+	if (!ret) {
+		size = resource_size(&r);
 		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
 
 		/* if we have no IOMMU, then we need to use carveout allocator.
