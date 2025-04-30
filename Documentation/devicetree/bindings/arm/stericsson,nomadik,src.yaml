@@ -1,0 +1,67 @@
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/stericsson,nomadik,src.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST-Ericsson Nomadik System and Reset Controller
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+properties:
+  $nodename:
+    const: '/'
+    
+  compatible:
+    description: Identify the SoC or board variant
+    enum:
+      - st,nomadik-nhk-15
+      - calaosystems,usb-s8815
+
+  usb-s8815:
+    description: USB-S8815 child node on Calao MiniKit
+    type: object
+    additionalProperties: false
+    properties:
+      ethernet-gpio-node:
+        description: Ethernet GPIO child node
+        type: object
+        additionalProperties: false
+        properties:
+          gpios:
+            description: GPIO specifier for ethernet
+            maxItems: 1
+          interrupts:
+            description: Interrupt specifier for ethernet
+            maxItems: 1
+        required:
+          - gpios
+          - interrupts
+      mmcsd-gpio-node:
+        description: MMC/SD GPIO child node
+        type: object
+        additionalProperties: false
+        properties:
+          gpios:
+            description: GPIO specifier for MMC/SD
+            maxItems: 1
+        required:
+          - gpios
+
+required:
+  - compatible
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: calao­systems,usb-s8815
+    then:
+      required:
+        - usb-s8815
+    else:
+      properties:
+        usb-s8815: false
+
+additionalProperties: true
