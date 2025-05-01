@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/st,comms-irb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST Comms IRB controller
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@st.com>
+
+description: |
+  Device-Tree bindings for ST IRB IP
+
+properties:
+  compatible:
+    const: st,comms-irb
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  rx-mode:
+    description: >
+      Specifies the L1 protocol used for receiving remote control signals;
+      required if rx pins are wired up
+    enum:
+      - infrared
+      - uhf
+
+  tx-mode:
+    description: >
+      Specifies the L1 protocol used for transmitting remote control signals;
+      required if tx pins are wired up
+    enum:
+      - infrared
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    rc@fe518000 {
+        compatible = "st,comms-irb";
+        reg = <0xfe518000 0x234>;
+        interrupts = <0 203 0>;
+        rx-mode = "infrared";
+    };
