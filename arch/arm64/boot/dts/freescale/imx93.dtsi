@@ -248,6 +248,11 @@
 		clock-names = "main_clk";
 	};
 
+	sram: sram@20480000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x20480000 0x0 0xa0000>;
+	};
+
 	soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -1268,6 +1273,16 @@
 				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "tx", "rx";
 			#mbox-cells = <2>;
+		};
+
+		npu@4a900000 {
+			compatible = "arm,ethos-u65";
+			reg = <0x4a900000 0x1000>;
+			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&mlmix>;
+			clocks = <&clk IMX93_CLK_ML>, <&clk IMX93_CLK_ML_APB>;
+			clock-names = "core", "apb";
+			//sram = <&sram>;
 		};
 
 		media_blk_ctrl: system-controller@4ac10000 {
