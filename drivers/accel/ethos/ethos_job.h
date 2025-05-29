@@ -1,0 +1,40 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright 2024-2025 Tomeu Vizoso <tomeu@tomeuvizoso.net> */
+
+#ifndef __ETHOS_JOB_H__
+#define __ETHOS_JOB_H__
+
+#include <drm/drm_drv.h>
+#include <drm/gpu_scheduler.h>
+
+#include "ethos_device.h"
+
+struct ethos_file_priv;
+
+struct ethos_job {
+	struct drm_sched_job base;
+	struct ethos_device *dev;
+
+	struct drm_gem_object *cmd_bo;
+	struct drm_gem_object *region_bo[NPU_BASEP_REGION_MAX];
+	u8 region_bo_num[NPU_BASEP_REGION_MAX];
+	u8 region_cnt;
+
+	/* Fence to be signaled by drm-sched once its done with the job */
+	struct dma_fence *inference_done_fence;
+
+	/* Fence to be signaled by IRQ handler when the job is complete. */
+	struct dma_fence *done_fence;
+
+	struct kref refcount;
+};
+
+int ethos_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *file);
+
+int ethos_job_init(struct ethos_device *dev);
+void ethos_job_fini(struct ethos_device *dev);
+int ethos_job_open(struct ethos_file_priv *ethos_priv);
+void ethos_job_close(struct ethos_file_priv *ethos_priv);
+int ethos_job_is_idle(struct ethos_device *dev);
+
+#endif
