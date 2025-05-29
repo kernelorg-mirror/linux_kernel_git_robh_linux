@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRM_ACCEL_ARM_ETHOS
+	tristate "Arm Ethos-U NPU"
+	depends on DRM_ACCEL
+	depends on HAS_IOMEM
+	help
+	  Enables driver for Arm Ethos-U65/U85 NPUs

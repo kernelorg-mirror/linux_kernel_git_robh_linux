@@ -1274,6 +1274,7 @@
 			compatible = "arm,ethos-u65";
 			reg = <0x4a900000 0x1000>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&mlmix>;
 			clocks = <&clk IMX93_CLK_ML>, <&clk IMX93_CLK_ML_APB>;
 			clock-names = "core", "apb";
 		};

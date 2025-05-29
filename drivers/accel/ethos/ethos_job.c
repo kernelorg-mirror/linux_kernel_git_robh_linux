@@ -1,0 +1,668 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
+/* Copyright 2019 Collabora ltd. */
+/* Copyright 2024-2025 Tomeu Vizoso <tomeu@tomeuvizoso.net> */
+
+#include <drm/drm_print.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem.h>
+#include <drm/ethos_accel.h>
+#include <linux/interrupt.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+
+#include "ethos_device.h"
+#include "ethos_drv.h"
+#include "ethos_job.h"
+//#include "ethos_registers.h"
+
+#define JOB_TIMEOUT_MS 500
+
+static struct ethos_job *
+to_ethos_job(struct drm_sched_job *sched_job)
+{
+	return container_of(sched_job, struct ethos_job, base);
+}
+
+static const char *ethos_fence_get_driver_name(struct dma_fence *fence)
+{
+	return "ethos";
+}
+
+static const char *ethos_fence_get_timeline_name(struct dma_fence *fence)
+{
+	return "ethos-npu";
+}
+
+static const struct dma_fence_ops ethos_fence_ops = {
+	.get_driver_name = ethos_fence_get_driver_name,
+	.get_timeline_name = ethos_fence_get_timeline_name,
+};
+
+static struct dma_fence *ethos_fence_create(struct ethos_device *dev)
+{
+	struct dma_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return ERR_PTR(-ENOMEM);
+
+	dma_fence_init(fence, &ethos_fence_ops, &dev->job_lock,
+		       dev->fence_context, ++dev->emit_seqno);
+
+	return fence;
+}
+
+static int
+ethos_copy_tasks(struct drm_device *dev,
+		  struct drm_file *file_priv,
+		  struct drm_ethos_job *job,
+		  struct ethos_job *ejob)
+{
+	struct drm_ethos_task *tasks;
+	int ret = 0;
+	int i;
+
+	ejob->task_count = job->task_count;
+
+	if (!ejob->task_count)
+		return 0;
+
+	tasks = kvmalloc_array(ejob->task_count, sizeof(*tasks), GFP_KERNEL);
+	if (!tasks) {
+		ret = -ENOMEM;
+		drm_dbg(dev, "Failed to allocate incoming tasks\n");
+		goto fail;
+	}
+
+	if (copy_from_user(tasks,
+			   (void __user *)(uintptr_t)job->tasks,
+			   ejob->task_count * sizeof(*tasks))) {
+		ret = -EFAULT;
+		drm_dbg(dev, "Failed to copy incoming tasks\n");
+		goto fail;
+	}
+
+	ejob->tasks = kvmalloc_array(job->task_count, sizeof(*ejob->tasks), GFP_KERNEL);
+	if (!ejob->tasks) {
+		drm_dbg(dev, "Failed to allocate task array\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	for (i = 0; i < ejob->task_count; i++) {
+		if (tasks[i].reserved != 0) {
+			drm_dbg(dev, "Reserved field in drm_ethos_task struct should be 0.\n");
+			return -EINVAL;
+		}
+
+		if (tasks[i].cmd_sz == 0) {
+			ret = -EINVAL;
+			goto fail;
+		}
+		ejob->tasks[i].cmds = tasks[i].cmds;
+		ejob->tasks[i].cmd_sz = tasks[i].cmd_sz;
+	}
+
+fail:
+	kvfree(tasks);
+	return ret;
+}
+
+static void ethos_job_hw_submit(struct ethos_device *dev, struct ethos_job *job)
+{
+	struct ethos_task *task;
+
+	/* Don't queue the job if a reset is in progress */
+	if (atomic_read(&dev->reset.pending))
+		return;
+
+	/* GO ! */
+
+	task = &job->tasks[job->next_task_idx];
+	job->next_task_idx++;   /* TODO: Do this only after a successful run? */
+
+	writel(lower_32_bits(task->cmds), dev->regs + NPU_REG_QBASE);
+	writel(upper_32_bits(task->cmds), dev->regs + NPU_REG_QBASE_HI);
+	writel(task->cmd_sz, dev->regs + NPU_REG_QSIZE);
+
+	writel(0x1, dev->regs + NPU_REG_CMD);
+
+	dev_dbg(dev->base.dev,
+		"Submitted cmd at 0x%llx to core\n", task->cmds);
+}
+
+static int ethos_acquire_object_fences(struct drm_gem_object **bos,
+					int bo_count,
+					struct drm_sched_job *job,
+					bool is_write)
+{
+	int i, ret;
+
+	for (i = 0; i < bo_count; i++) {
+		ret = dma_resv_reserve_fences(bos[i]->resv, 1);
+		if (ret)
+			return ret;
+
+		ret = drm_sched_job_add_implicit_dependencies(job, bos[i],
+							      is_write);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void ethos_attach_object_fences(struct drm_gem_object **bos,
+					int bo_count,
+					struct dma_fence *fence)
+{
+	int i;
+
+	for (i = 0; i < bo_count; i++)
+		dma_resv_add_fence(bos[i]->resv, fence, DMA_RESV_USAGE_WRITE);
+}
+
+static int ethos_job_do_push(struct ethos_job *job)
+{
+	struct ethos_device *dev = job->dev;
+	int ret;
+
+	guard(mutex)(&dev->sched_lock);
+
+	drm_sched_job_arm(&job->base);
+
+	job->inference_done_fence = dma_fence_get(&job->base.s_fence->finished);
+
+	ret = ethos_acquire_object_fences(job->in_bos, job->in_bo_count, &job->base, false);
+	if (ret)
+		return ret;
+
+	ret = ethos_acquire_object_fences(job->out_bos, job->out_bo_count, &job->base, true);
+	if (ret)
+		return ret;
+
+	kref_get(&job->refcount); /* put by scheduler job completion */
+
+	drm_sched_entity_push_job(&job->base);
+
+	return 0;
+}
+
+static int ethos_job_push(struct ethos_job *job)
+{
+	struct drm_gem_object **bos;
+	struct ww_acquire_ctx acquire_ctx;
+	int ret;
+
+	bos = kvmalloc_array(job->in_bo_count + job->out_bo_count, sizeof(void *),
+			     GFP_KERNEL);
+	memcpy(bos, job->in_bos, job->in_bo_count * sizeof(void *));
+	memcpy(&bos[job->in_bo_count], job->out_bos, job->out_bo_count * sizeof(void *));
+
+	ret = drm_gem_lock_reservations(bos, job->in_bo_count + job->out_bo_count, &acquire_ctx);
+	if (ret)
+		goto err;
+
+	ret = ethos_job_do_push(job);
+	if (!ret)
+		ethos_attach_object_fences(job->out_bos, job->out_bo_count, job->inference_done_fence);
+
+	drm_gem_unlock_reservations(bos, job->in_bo_count + job->out_bo_count, &acquire_ctx);
+err:
+	kfree(bos);
+
+	return ret;
+}
+
+static void ethos_job_cleanup(struct kref *ref)
+{
+	struct ethos_job *job = container_of(ref, struct ethos_job,
+						refcount);
+	unsigned int i;
+
+	dma_fence_put(job->done_fence);
+	dma_fence_put(job->inference_done_fence);
+
+	if (job->in_bos) {
+		for (i = 0; i < job->in_bo_count; i++)
+			drm_gem_object_put(job->in_bos[i]);
+
+		kvfree(job->in_bos);
+	}
+
+	if (job->out_bos) {
+		for (i = 0; i < job->out_bo_count; i++)
+			drm_gem_object_put(job->out_bos[i]);
+
+		kvfree(job->out_bos);
+	}
+
+	kfree(job->tasks);
+	kfree(job);
+}
+
+static void ethos_job_put(struct ethos_job *job)
+{
+	kref_put(&job->refcount, ethos_job_cleanup);
+}
+
+static void ethos_job_free(struct drm_sched_job *sched_job)
+{
+	struct ethos_job *job = to_ethos_job(sched_job);
+
+	drm_sched_job_cleanup(sched_job);
+	ethos_job_put(job);
+}
+
+static struct dma_fence *ethos_job_run(struct drm_sched_job *sched_job)
+{
+	struct ethos_job *job = to_ethos_job(sched_job);
+	struct ethos_device *dev = job->dev;
+	struct dma_fence *fence = NULL;
+	int ret;
+
+	if (unlikely(job->base.s_fence->finished.error))
+		return NULL;
+
+	/*
+	 * Nothing to execute: can happen if the job has finished while
+	 * we were resetting the GPU.
+	 */
+	if (job->next_task_idx == job->task_count)
+		return NULL;
+
+	fence = ethos_fence_create(dev);
+	if (IS_ERR(fence))
+		return fence;
+
+	if (job->done_fence)
+		dma_fence_put(job->done_fence);
+	job->done_fence = dma_fence_get(fence);
+
+	ret = pm_runtime_get_sync(dev->base.dev);
+	if (ret < 0)
+		return fence;
+
+	spin_lock(&dev->job_lock);
+
+	dev->in_flight_job = job;
+	ethos_job_hw_submit(dev, job);
+
+	spin_unlock(&dev->job_lock);
+
+	return fence;
+}
+
+static void ethos_job_handle_done(struct ethos_device *dev,
+				   struct ethos_job *job)
+{
+	if (job->next_task_idx < job->task_count) {
+		ethos_job_hw_submit(dev, job);
+		return;
+	}
+
+	dev->in_flight_job = NULL;
+	dma_fence_signal_locked(job->done_fence);
+	pm_runtime_put_autosuspend(dev->base.dev);
+}
+
+static void ethos_job_handle_irq(struct ethos_device *dev)
+{
+	u32 status;
+
+	pm_runtime_mark_last_busy(dev->base.dev);
+
+	status = readl_relaxed(dev->regs + NPU_REG_STATUS);
+
+	if ((status & (STATUS_BUS_STATUS | STATUS_CMD_PARSE_ERR | STATUS_CMD_END_REACHED)) !=
+	    STATUS_CMD_END_REACHED) {
+		dev_err(dev->base.dev, "Error IRQ - %x\n", status);
+		drm_sched_fault(&dev->sched);
+		return;
+	}
+
+	spin_lock(&dev->job_lock);
+
+	if (dev->in_flight_job)
+		ethos_job_handle_done(dev, dev->in_flight_job);
+
+	spin_unlock(&dev->job_lock);
+}
+
+static void
+ethos_reset(struct ethos_device *dev, struct drm_sched_job *bad)
+{
+	bool cookie;
+
+	if (!atomic_read(&dev->reset.pending))
+		return;
+
+	/*
+	 * Stop the scheduler.
+	 *
+	 * FIXME: We temporarily get out of the dma_fence_signalling section
+	 * because the cleanup path generate lockdep splats when taking locks
+	 * to release job resources. We should rework the code to follow this
+	 * pattern:
+	 *
+	 *	try_lock
+	 *	if (locked)
+	 *		release
+	 *	else
+	 *		schedule_work_to_release_later
+	 */
+	drm_sched_stop(&dev->sched, bad);
+
+	cookie = dma_fence_begin_signalling();
+
+	if (bad)
+		drm_sched_increase_karma(bad);
+
+	/*
+	 * Mask job interrupts and synchronize to make sure we won't be
+	 * interrupted during our reset.
+	 */
+//	ethos_pc_writel(dev, INTERRUPT_MASK, 0x0);
+	synchronize_irq(dev->irq);
+
+	/* Handle the remaining interrupts before we reset. */
+	ethos_job_handle_irq(dev);
+
+	/*
+	 * Remaining interrupts have been handled, but we might still have
+	 * stuck jobs. Let's make sure the PM counters stay balanced by
+	 * manually calling pm_runtime_put_noidle() and
+	 * ethos_devfreq_record_idle() for each stuck job.
+	 * Let's also make sure the cycle counting register's refcnt is
+	 * kept balanced to prevent it from running forever
+	 */
+	spin_lock(&dev->job_lock);
+	if (dev->in_flight_job)
+		pm_runtime_put_noidle(dev->base.dev);
+
+	dev->in_flight_job = NULL;
+	spin_unlock(&dev->job_lock);
+
+	/* Proceed with reset now. */
+	pm_runtime_force_suspend(dev->base.dev);
+	pm_runtime_force_resume(dev->base.dev);
+
+	/* GPU has been reset, we can clear the reset pending bit. */
+	atomic_set(&dev->reset.pending, 0);
+
+	/*
+	 * Now resubmit jobs that were previously queued but didn't have a
+	 * chance to finish.
+	 * FIXME: We temporarily get out of the DMA fence signalling section
+	 * while resubmitting jobs because the job submission logic will
+	 * allocate memory with the GFP_KERNEL flag which can trigger memory
+	 * reclaim and exposes a lock ordering issue.
+	 */
+	dma_fence_end_signalling(cookie);
+	drm_sched_resubmit_jobs(&dev->sched);
+	cookie = dma_fence_begin_signalling();
+
+	/* Restart the scheduler */
+	drm_sched_start(&dev->sched, 0);
+
+	dma_fence_end_signalling(cookie);
+}
+
+static enum drm_gpu_sched_stat ethos_job_timedout(struct drm_sched_job *sched_job)
+{
+	struct ethos_job *job = to_ethos_job(sched_job);
+	struct ethos_device *dev = job->dev;
+
+	/*
+	 * If the GPU managed to complete this jobs fence, the timeout is
+	 * spurious. Bail out.
+	 */
+	if (dma_fence_is_signaled(job->done_fence))
+		return DRM_GPU_SCHED_STAT_NOMINAL;
+
+	/*
+	 * Ethos IRQ handler may take a long time to process an interrupt
+	 * if there is another IRQ handler hogging the processing.
+	 * For example, the HDMI encoder driver might be stuck in the IRQ
+	 * handler for a significant time in a case of bad cable connection.
+	 * In order to catch such cases and not report spurious ethos
+	 * job timeouts, synchronize the IRQ handler and re-check the fence
+	 * status.
+	 */
+	synchronize_irq(dev->irq);
+
+	if (dma_fence_is_signaled(job->done_fence)) {
+		dev_warn(dev->base.dev, "unexpectedly high interrupt latency\n");
+		return DRM_GPU_SCHED_STAT_NOMINAL;
+	}
+
+	dev_err(dev->base.dev, "gpu sched timeout");
+
+	atomic_set(&dev->reset.pending, 1);
+	ethos_reset(dev, sched_job);
+
+	return DRM_GPU_SCHED_STAT_NOMINAL;
+}
+
+static void ethos_reset_work(struct work_struct *work)
+{
+	struct ethos_device *dev;
+
+	dev = container_of(work, struct ethos_device, reset.work);
+	ethos_reset(dev, NULL);
+}
+
+static const struct drm_sched_backend_ops ethos_sched_ops = {
+	.run_job = ethos_job_run,
+	.timedout_job = ethos_job_timedout,
+	.free_job = ethos_job_free
+};
+
+static irqreturn_t ethos_job_irq_handler_thread(int irq, void *data)
+{
+	struct ethos_device *dev = data;
+
+	ethos_job_handle_irq(dev);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ethos_job_irq_handler(int irq, void *data)
+{
+	struct ethos_device *dev = data;
+	u32 status = readl_relaxed(dev->regs + NPU_REG_STATUS);
+
+	if (!(status & STATUS_IRQ_RAISED))
+		return IRQ_NONE;
+
+	writel_relaxed(CMD_CLEAR_IRQ, dev->regs + NPU_REG_CMD);
+	return IRQ_WAKE_THREAD;
+}
+
+int ethos_job_init(struct ethos_device *dev)
+{
+	struct drm_sched_init_args args = {
+		.ops = &ethos_sched_ops,
+		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
+		.credit_limit = 1,
+		.timeout = msecs_to_jiffies(JOB_TIMEOUT_MS),
+		.name = dev_name(dev->base.dev),
+		.dev = dev->base.dev,
+	};
+	int ret;
+
+	INIT_WORK(&dev->reset.work, ethos_reset_work);
+	spin_lock_init(&dev->job_lock);
+
+	dev->irq = platform_get_irq(to_platform_device(dev->base.dev), 0);
+	if (dev->irq < 0)
+		return dev->irq;
+
+	ret = devm_request_threaded_irq(dev->base.dev, dev->irq,
+					ethos_job_irq_handler,
+					ethos_job_irq_handler_thread,
+					IRQF_SHARED, KBUILD_MODNAME,
+					dev);
+	if (ret) {
+		dev_err(dev->base.dev, "failed to request irq");
+		return ret;
+	}
+
+	dev->reset.wq = alloc_ordered_workqueue("ethos-reset", 0);
+	if (!dev->reset.wq)
+		return -ENOMEM;
+
+	dev->fence_context = dma_fence_context_alloc(1);
+
+	args.timeout_wq = dev->reset.wq;
+	ret = drm_sched_init(&dev->sched, &args);
+	if (ret) {
+		dev_err(dev->base.dev, "Failed to create scheduler: %d.", ret);
+		goto err_sched;
+	}
+
+	return 0;
+
+err_sched:
+	drm_sched_fini(&dev->sched);
+
+	destroy_workqueue(dev->reset.wq);
+	return ret;
+}
+
+void ethos_job_fini(struct ethos_device *dev)
+{
+	drm_sched_fini(&dev->sched);
+
+	cancel_work_sync(&dev->reset.work);
+	destroy_workqueue(dev->reset.wq);
+}
+
+int ethos_job_open(struct ethos_file_priv *ethos_priv)
+{
+	struct ethos_device *dev = ethos_priv->edev;
+	struct drm_gpu_scheduler *sched = &dev->sched;
+	int ret;
+
+	ret = drm_sched_entity_init(&ethos_priv->sched_entity,
+				    DRM_SCHED_PRIORITY_NORMAL,
+				    &sched, 1, NULL);
+	return WARN_ON(ret);
+}
+
+void ethos_job_close(struct ethos_file_priv *ethos_priv)
+{
+	struct drm_sched_entity *entity = &ethos_priv->sched_entity;
+
+	drm_sched_entity_destroy(entity);
+}
+
+int ethos_job_is_idle(struct ethos_device *dev)
+{
+	/* If there are any jobs in this HW queue, we're not idle */
+	if (atomic_read(&dev->sched.credit_count))
+		return false;
+
+	return true;
+}
+
+
+static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
+				   struct drm_ethos_job *job)
+{
+	struct ethos_device *edev = to_ethos_device(dev);
+	struct ethos_file_priv *file_priv = file->driver_priv;
+	struct ethos_job *ejob = NULL;
+	int ret = 0;
+
+	if (job->task_count == 0)
+		return -EINVAL;
+
+	ejob = kzalloc(sizeof(*ejob), GFP_KERNEL);
+	if (!ejob)
+		return -ENOMEM;
+
+	kref_init(&ejob->refcount);
+
+	ejob->dev = edev;
+
+	ret = drm_sched_job_init(&ejob->base,
+				 &file_priv->sched_entity,
+				 1, NULL);
+	if (ret)
+		goto out_put_job;
+
+	ret = ethos_copy_tasks(dev, file, job, ejob);
+	if (ret)
+		goto out_cleanup_job;
+
+	ret = drm_gem_objects_lookup(file,
+				     (void __user *)(uintptr_t)job->in_bo_handles,
+				     job->in_bo_handle_count, &ejob->in_bos);
+	if (ret)
+		goto out_cleanup_job;
+
+	ejob->in_bo_count = job->in_bo_handle_count;
+
+	ret = drm_gem_objects_lookup(file,
+				     (void __user *)(uintptr_t)job->out_bo_handles,
+				     job->out_bo_handle_count, &ejob->out_bos);
+	if (ret)
+		goto out_cleanup_job;
+
+	ejob->out_bo_count = job->out_bo_handle_count;
+
+	ret = ethos_job_push(ejob);
+	if (ret)
+		goto out_cleanup_job;
+
+out_cleanup_job:
+	if (ret)
+		drm_sched_job_cleanup(&ejob->base);
+out_put_job:
+	ethos_job_put(ejob);
+
+	return ret;
+}
+
+int ethos_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct drm_ethos_submit *args = data;
+	struct drm_ethos_job *jobs;
+	int ret = 0;
+	unsigned int i = 0;
+
+	if (args->reserved != 0) {
+		drm_dbg(dev, "Reserved field in drm_ethos_submit struct should be 0.\n");
+		return -EINVAL;
+	}
+
+	jobs = kvmalloc_array(args->job_count, sizeof(*jobs), GFP_KERNEL);
+	if (!jobs) {
+		drm_dbg(dev, "Failed to allocate incoming job array\n");
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(jobs,
+			   (void __user *)(uintptr_t)args->jobs,
+			   args->job_count * sizeof(*jobs))) {
+		ret = -EFAULT;
+		drm_dbg(dev, "Failed to copy incoming job array\n");
+		goto exit;
+	}
+
+	for (i = 0; i < args->job_count; i++) {
+		if (jobs[i].reserved != 0) {
+			drm_dbg(dev, "Reserved field in drm_ethos_job struct should be 0.\n");
+			return -EINVAL;
+		}
+
+		ethos_ioctl_submit_job(dev, file, &jobs[i]);
+	}
+
+exit:
+	kfree(jobs);
+
+	return ret;
+}
