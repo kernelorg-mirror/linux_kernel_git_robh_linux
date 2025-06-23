@@ -435,6 +435,14 @@ static int ethos_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static void ethos_remove(struct platform_device *pdev)
+{
+	struct ethos_device *ethosdev = dev_get_drvdata(&pdev->dev);
+
+	drm_dev_unregister(&ethosdev->base);
+	ethos_job_fini(ethosdev);
+}
+
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "arm,ethos-u65" },
 	{}
@@ -448,6 +456,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(ethos_pm_ops,
 
 static struct platform_driver ethos_driver = {
 	.probe = ethos_probe,
+	.remove = ethos_remove,
 	.driver = {
 		.name = "ethos",
 		.pm = pm_ptr(&ethos_pm_ops),
