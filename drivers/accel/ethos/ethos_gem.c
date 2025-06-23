@@ -56,7 +56,6 @@ static const struct drm_gem_object_funcs ethos_gem_funcs = {
  */
 struct drm_gem_object *ethos_gem_create_object(struct drm_device *ddev, size_t size)
 {
-	struct ethos_device *ptdev = container_of(ddev, struct ethos_device, base);
 	struct ethos_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
@@ -64,8 +63,6 @@ struct drm_gem_object *ethos_gem_create_object(struct drm_device *ddev, size_t s
 		return ERR_PTR(-ENOMEM);
 
 	obj->base.base.funcs = &ethos_gem_funcs;
-	obj->base.map_noncoherent = !ptdev->coherent;
-
 	return &obj->base.base;
 }
 
