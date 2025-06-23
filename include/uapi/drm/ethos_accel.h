@@ -26,6 +26,7 @@ enum drm_ethos_ioctl_id {
 	/** @DRM_ETHOS_BO_CREATE: Create a buffer object. */
 	DRM_ETHOS_BO_CREATE,
 
+	DRM_ETHOS_BO_WAIT,
 	/**
 	 * @DRM_ETHOS_BO_MMAP_OFFSET: Get the file offset to pass to
 	 * mmap to map a GEM object.
@@ -151,6 +152,21 @@ struct drm_ethos_bo_mmap_offset {
 	__u64 offset;
 };
 
+/**
+ * struct drm_ethos_wait_bo - ioctl argument for waiting for
+ * completion of the last DRM_ETHOS_SUBMIT on a BO.
+ *
+ * This is useful for cases where multiple processes might be
+ * rendering to a BO and you want to wait for all rendering to be
+ * completed.
+ */
+struct drm_ethos_bo_wait {
+	__u32 handle;
+	__u32 pad;
+	__s64 timeout_ns;	/* absolute */
+};
+
+
 struct drm_ethos_cmdstream_bo_create {
 	/* Size of the data argument. */
 	__u32 size;
@@ -219,6 +235,8 @@ enum {
 		DRM_IOCTL_ETHOS(WR, DEV_QUERY, dev_query),
 	DRM_IOCTL_ETHOS_BO_CREATE =
 		DRM_IOCTL_ETHOS(WR, BO_CREATE, bo_create),
+	DRM_IOCTL_ETHOS_BO_WAIT =
+		DRM_IOCTL_ETHOS(WR, BO_WAIT, bo_wait),
 	DRM_IOCTL_ETHOS_BO_MMAP_OFFSET =
 		DRM_IOCTL_ETHOS(WR, BO_MMAP_OFFSET, bo_mmap_offset),
 	DRM_IOCTL_ETHOS_CMDSTREAM_BO_CREATE =

@@ -160,6 +160,25 @@ out_dev_exit:
 	return ret;
 }
 
+static int ethos_ioctl_bo_wait(struct drm_device *ddev, void *data,
+				   struct drm_file *file)
+{
+	struct drm_ethos_bo_wait *args = data;
+	int cookie, ret;
+	unsigned long timeout = drm_timeout_abs_to_jiffies(args->timeout_ns);
+
+	if (args->pad)
+		return -EINVAL;
+
+	if (!drm_dev_enter(ddev, &cookie))
+		return -ENODEV;
+
+	ret = drm_gem_dma_resv_wait(file, args->handle, true, timeout);
+
+	drm_dev_exit(cookie);
+	return ret;
+}
+
 static int ethos_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 					struct drm_file *file)
 {
@@ -254,6 +273,7 @@ static const struct drm_ioctl_desc ethos_drm_driver_ioctls[] = {
 
 	ETHOS_IOCTL(DEV_QUERY, dev_query, 0),
 	ETHOS_IOCTL(BO_CREATE, bo_create, 0),
+	ETHOS_IOCTL(BO_WAIT, bo_wait, 0),
 	ETHOS_IOCTL(BO_MMAP_OFFSET, bo_mmap_offset, 0),
 	ETHOS_IOCTL(CMDSTREAM_BO_CREATE, cmdstream_bo_create, 0),
 	ETHOS_IOCTL(SUBMIT, submit, 0),
