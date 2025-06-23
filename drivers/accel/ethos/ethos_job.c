@@ -92,21 +92,20 @@ static void ethos_job_hw_submit(struct ethos_device *dev, struct ethos_job *job)
 		readl(dev->regs + NPU_REG_STATUS), readl(dev->regs + 0x18));
 }
 
-static int ethos_acquire_object_fences(struct drm_gem_object **bos,
-					int bo_count,
-					struct ethos_job *job)
+static int ethos_acquire_object_fences(struct ethos_job *job)
 {
 	int i, ret;
+	struct drm_gem_object **bos = job->region_bo;
 
-	for (i = 0; i < bo_count; i++) {
+	for (i = 0; i < job->region_cnt; i++) {
 		if (!bos[i])
-			continue;
+			break;
 
 		ret = dma_resv_reserve_fences(bos[i]->resv, 1);
 		if (ret)
 			return ret;
 
-		bool is_write = to_ethos_bo(job->cmd_bo)->info->output_region[i];
+		bool is_write = to_ethos_bo(job->cmd_bo)->info->output_region[job->region_bo_num[i]];
 		ret = drm_sched_job_add_implicit_dependencies(&job->base, bos[i],
 							      is_write);
 		if (ret)
@@ -116,14 +115,15 @@ static int ethos_acquire_object_fences(struct drm_gem_object **bos,
 	return 0;
 }
 
-static void ethos_attach_object_fences(struct ethos_job *job, struct drm_gem_object **bos,
-					int bo_count,
-					struct dma_fence *fence)
+static void ethos_attach_object_fences(struct ethos_job *job)
 {
 	int i;
+	struct dma_fence *fence = job->inference_done_fence;
+	struct drm_gem_object **bos = job->region_bo;
+	struct ethos_validated_cmdstream_info *info = to_ethos_bo(job->cmd_bo)->info;
 
-	for (i = 0; i < bo_count; i++)
-		if (to_ethos_bo(job->cmd_bo)->info->output_region[i])
+	for (i = 0; i < job->region_cnt; i++)
+		if (info->output_region[job->region_bo_num[i]])
 			dma_resv_add_fence(bos[i]->resv, fence, DMA_RESV_USAGE_WRITE);
 }
 
@@ -138,7 +138,7 @@ static int ethos_job_do_push(struct ethos_job *job)
 
 	job->inference_done_fence = dma_fence_get(&job->base.s_fence->finished);
 
-	ret = ethos_acquire_object_fences(job->region_bo, job->region_cnt, job);
+	ret = ethos_acquire_object_fences(job);
 	if (ret)
 		return ret;
 
@@ -160,7 +160,7 @@ static int ethos_job_push(struct ethos_job *job)
 
 	ret = ethos_job_do_push(job);
 	if (!ret)
-		ethos_attach_object_fences(job, job->region_bo, job->region_cnt, job->inference_done_fence);
+		ethos_attach_object_fences(job);
 
 	drm_gem_unlock_reservations(job->region_bo, job->region_cnt, &acquire_ctx);
 	return ret;
