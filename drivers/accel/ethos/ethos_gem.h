@@ -12,7 +12,7 @@
 
 struct ethos_validated_cmdstream_info {
 	u32 cmd_size;
-	u32 region_size[NPU_BASEP_REGION_MAX];
+	u64 region_size[NPU_BASEP_REGION_MAX];
 	bool output_region[NPU_BASEP_REGION_MAX];
 };
 

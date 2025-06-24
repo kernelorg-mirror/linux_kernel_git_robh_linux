@@ -107,84 +107,129 @@ ethos_gem_create_with_handle(struct drm_file *file,
 	return ret;
 }
 
-struct dma_xfer {
+struct dma {
+	s8 region;
 	u64 len;
-	u16 size0;
-	u16 size1;
-	s8 src_region;
-	s8 dst_region;
-	s8 mode;
-	u64 src_offset;
-	u64 dst_offset;
+	u64 offset;
+	s64 stride[2];
 };
+
+struct cmd_state {
+	struct {
+		u16 size0;
+		u16 size1;
+		s8 mode;
+		struct dma src;
+		struct dma dst;
+	} dma;
+};
+
+static u64 cmd_to_addr(u32 *cmd)
+{
+	return ((u64)((cmd[0] & 0xff0000) << 16)) | cmd[1];
+}
+
+static u64 dma_length(struct ethos_validated_cmdstream_info *info,
+		      s8 mode, u16 size0, u16 size1, struct dma *dma)
+{
+	u64 len = dma->len;
+	if (mode >= 1) {
+		len += dma->stride[0];
+		len *= size0;
+	}
+	if (mode == 2) {
+		len += dma->stride[1];
+		len *= size1;
+	}
+	if (dma->region >= 0)
+		info->region_size[dma->region] = max(info->region_size[dma->region],
+						     len + dma->offset);
+
+	return len;
+}
 
 static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 					struct ethos_gem_object *bo, u32 size)
 {
 	struct ethos_validated_cmdstream_info *info;
 	u32 *cmds = bo->base.vaddr;
-	struct dma_xfer dma = {};
+	struct cmd_state st = {};
+	int i;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	info->cmd_size = size;
 
-	for (int i = 0; i < size/4; i++) {
-		u16 cmd = cmds[i];
-		u16 param = cmds[i] >> 16;
+	for (i = 0; i < size/4; i++, cmds++) {
+		u16 cmd = *cmds;
+		u16 param = *cmds >> 16;
 
-		switch(cmd & 0xffff) {
+		switch(cmd) {
 		case 0x10: // NPU_OP_DMA_START
-			u64 len = dma.len;
-			if (dma.mode == 2)
-				len *= dma.size1;
-			if (dma.mode >= 1)
-				len *= dma.size0;
-			if ((dma.src_region >= 0) && (info->region_size[dma.src_region] < len + dma.src_offset))
-				info->region_size[dma.src_region] = len + dma.src_offset;
-			if (dma.dst_region >= 0) {
-				info->output_region[dma.dst_region] = true;
-				if (info->region_size[dma.dst_region] < len + dma.dst_offset)
-					info->region_size[dma.dst_region] = len + dma.dst_offset;
-			}
-			dev_info(ddev->dev, "cmdstream: DMA SRC:%d:%llx DST:%d:%llx, len=%lld\n",
-				 dma.src_region, dma.src_offset, dma.dst_region, dma.dst_offset, len);
+			u64 srclen = dma_length(info, st.dma.mode, st.dma.size0, st.dma.size1, &st.dma.src);
+			u64 dstlen = dma_length(info, st.dma.mode, st.dma.size0, st.dma.size1, &st.dma.dst);
+			if (st.dma.dst.region >= 0)
+				info->output_region[st.dma.dst.region] = true;
+			dev_info(ddev->dev, "cmdstream: DMA SRC:%d:%llx+%llx DST:%d:%llx+%llx\n",
+				 st.dma.src.region, st.dma.src.offset, srclen,
+				 st.dma.dst.region, st.dma.dst.offset, dstlen);
 			break;
 		case 0x130: // NPU_SET_DMA0_SRC_REGION
 			if (param & 0x100)
-				dma.src_region = -1;
+				st.dma.src.region = -1;
 			else
-				dma.src_region = param & 0xff;
-			dma.mode = (cmd >> 25) & 0x3;
+				st.dma.src.region = param & 0x7;
+			st.dma.mode = (param >> 9) & 0x3;
 			break;
 		case 0x131: // NPU_SET_DMA0_DST_REGION
 			if (param & 0x100)
-				dma.dst_region = -1;
+				st.dma.dst.region = -1;
 			else
-				dma.dst_region = param & 0xff;
+				st.dma.dst.region = param & 0x7;
 			break;
 		case 0x132: // NPU_SET_DMA0_SIZE0
-			dma.size0 = param;
+			st.dma.size0 = param;
 			break;
 		case 0x133: // NPU_SET_DMA0_SIZE1
-			dma.size1 = param;
+			st.dma.size1 = param;
+			break;
+		case 0x4033: // NPU_SET_DMA0_SRC_STRIDE0
+			st.dma.src.stride[0] = (s64)cmd_to_addr(cmds);
+			break;
+		case 0x4034: // NPU_SET_DMA0_SRC_STRIDE1
+			st.dma.src.stride[1] = (s64)cmd_to_addr(cmds);
+			break;
+		case 0x4035: // NPU_SET_DMA0_DST_STRIDE0
+			st.dma.dst.stride[0] = (s64)cmd_to_addr(cmds);
+			break;
+		case 0x4036: // NPU_SET_DMA0_DST_STRIDE1
+			st.dma.dst.stride[1] = (s64)cmd_to_addr(cmds);
 			break;
 		case 0x4030: // NPU_SET_DMA0_SRC
-			dma.src_offset = ((u64)(param & 0xff) << 32) | cmds[i+1];
+			st.dma.src.offset = cmd_to_addr(cmds);
 			break;
 		case 0x4031: // NPU_SET_DMA0_DST
-			dma.dst_offset = ((u64)(param & 0xff) << 32) | cmds[i+1];
+			st.dma.dst.offset = cmd_to_addr(cmds);
 			break;
 		case 0x4032: // NPU_SET_DMA0_LEN
-			dma.len = ((u64)(param & 0xff) << 32) | cmds[i+1];
+			st.dma.src.len = st.dma.dst.len = cmd_to_addr(cmds);
 			break;
 		default:
 			break;
 		}
 
-		if (cmd & 0x4000)
+		if (cmd & 0x4000) {
 			i++;
+			cmds++;
+		}
+	}
+
+	for (i = 0; i < NPU_BASEP_REGION_MAX; i++) {
+		if (!info->region_size[i])
+			continue;
+		dev_info(ddev->dev, "region %d max size: %llx\n",
+				i, info->region_size[i]);
 	}
 
 	bo->info = info;
