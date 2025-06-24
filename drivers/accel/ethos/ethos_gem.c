@@ -178,6 +178,104 @@ static u64 dma_length(struct ethos_validated_cmdstream_info *info,
 	return len;
 }
 
+static u64 feat_matrix_length(struct ethos_validated_cmdstream_info *info,
+			      struct feat_matrix *fm,
+			      u32 x, u32 y, u32 c)
+{
+	int storage = 0; // FIXME: support U85 3x1 tile
+	int tile = 0;
+
+	switch (storage) {
+	case 0:
+		if (x >= fm->width0 + 1) {
+			x -= fm->width0 + 1;
+			tile += 1;
+		}
+		if (y >= fm->height[tile] + 1) {
+			y -= fm->height[tile] + 1;
+			tile += 2;
+		}
+		break;
+	case 1:
+		if (y >= fm->height[1] + 1) {
+			y -= fm->height[1] + 1;
+			tile = 2;
+		} else if (y >= fm->height[0] + 1) {
+			y -= fm->height[0] + 1;
+			tile = 1;
+		}
+		break;
+	}
+	u64 addr = fm->base[tile] + y * fm->stride_y;
+
+	switch ((fm->precision >> 6) & 0x3) { // format
+	case 0: //nhwc:
+		addr += x * fm->stride_x + c;
+		break;
+	case 1: //nhcwb16:
+		u32 element_size = BIT((fm->precision >> 1) & 0x3);
+		addr += (c / 16) * fm->stride_c + (16 * x + (c & 0xf)) * element_size;
+		break;
+	}
+
+	info->region_size[fm->region] = max(info->region_size[fm->region], addr + 1);
+
+	return addr;
+}
+
+static void calc_sizes(struct drm_device *ddev,
+		       struct ethos_validated_cmdstream_info *info,
+		       u16 op, struct cmd_state *st,
+		       bool ifm, bool ifm2, bool weight, bool scale)
+{
+	u64 len;
+	char str[80];
+	size_t slen = 0;
+
+	if (ifm) {
+		u32 stride_y = ((st->ifm.stride_kernel >> 8) & 0x2) + ((st->ifm.stride_kernel >> 1) & 0x1) + 1;
+		u32 stride_x = ((st->ifm.stride_kernel >> 5) & 0x2) + (st->ifm.stride_kernel & 0x1) + 1;
+		u32 ifm_height = st->ofm.height[2] * stride_y + st->ifm.height[2] - (st->ifm.pad_top + st->ifm.pad_bottom);
+		u32 ifm_width  = st->ofm.width * stride_x + st->ifm.width - (st->ifm.pad_left + st->ifm.pad_right);
+
+		len = feat_matrix_length(info, &st->ifm, ifm_width,
+					 ifm_height, st->ifm.depth);
+		slen += snprintf(str, 80, "IFM:%d:0x%llx-0x%llx ",
+				 st->ifm.region, st->ifm.base[0], len);
+
+	}
+
+	if (ifm2) {
+		len = feat_matrix_length(info, &st->ifm2, st->ifm.depth,
+					 0, st->ofm.depth);
+		slen += snprintf(str + slen, 80 - slen, "IFM2:%d:0x%llx-0x%llx ",
+				 st->ifm2.region, st->ifm2.base[0], len);
+	}
+
+	if (weight) {
+		info->region_size[st->weight[0].region] = max(info->region_size[st->weight[0].region],
+								st->weight[0].base + st->weight[0].length);
+		slen += snprintf(str + slen, 80 - slen, "W:%d:0x%llx-0x%llx ",
+				 st->weight[0].region, st->weight[0].base,
+				 st->weight[0].base + st->weight[0].length - 1);
+	}
+
+	if (scale) {
+		info->region_size[st->scale[0].region] = max(info->region_size[st->scale[0].region],
+								st->scale[0].base + st->scale[0].length);
+		slen += snprintf(str + slen, 80 - slen, "S:%d:0x%llx-0x%llx ",
+				 st->scale[0].region, st->scale[0].base,
+				 st->scale[0].base + st->scale[0].length - 1);
+	}
+
+	len = feat_matrix_length(info, &st->ofm, st->ofm.width,
+				 st->ofm.height[2], st->ofm.depth);
+	info->output_region[st->ofm.region] = true;
+
+	dev_info(ddev->dev, "cmd: OP:%d %sOFM:%d:0x%llx-0x%llx\n",
+			op, str, st->ofm.region, st->ofm.base[0], len);
+}
+
 static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 					struct ethos_gem_object *bo, u32 size)
 {
@@ -192,6 +290,7 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 	info->cmd_size = size;
 
 	for (i = 0; i < size/4; i++, cmds++) {
+		bool use_ifm, use_ifm2, use_scale;
 		u16 cmd = *cmds;
 		u16 param = *cmds >> 16;
 
@@ -204,6 +303,25 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 			dev_info(ddev->dev, "cmdstream: DMA SRC:%d:%llx+%llx DST:%d:%llx+%llx\n",
 				 st.dma.src.region, st.dma.src.offset, srclen,
 				 st.dma.dst.region, st.dma.dst.offset, dstlen);
+			break;
+		case 0x2: // NPU_OP_CONV
+		case 0x3: // NPU_OP_DEPTHWISE
+			use_ifm2 = param & 0x1;  // weights_ifm2
+			use_scale = !(st.ofm.precision & 0x100);
+			calc_sizes(ddev, info, cmd, &st, true, use_ifm2, !use_ifm2, use_scale);
+			break;
+		case 0x5: // NPU_OP_POOL
+			use_ifm = param != 0x4;  // pooling mode
+			use_scale = !(st.ofm.precision & 0x100);
+			calc_sizes(ddev, info, cmd, &st, use_ifm, false, false, use_scale);
+			break;
+		case 0x6: // NPU_OP_ELEMENTWISE
+			use_ifm2 = !((st.ifm2.broadcast == 8) || (param == 5) || (param == 6) || (param == 7) || (param == 0x24));
+			use_ifm = st.ifm.broadcast != 8;
+			calc_sizes(ddev, info, cmd, &st, use_ifm, use_ifm2, false, false);
+			break;
+		case 0x7: // NPU_OP_RESIZE (U85)
+			WARN_ON(1); // TODO
 			break;
 		case 0x120: // NPU_SET_KERNEL_WIDTH_M1
 			st.ifm.width = param;
