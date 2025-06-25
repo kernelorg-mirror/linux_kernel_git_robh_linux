@@ -300,7 +300,7 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 			u64 dstlen = dma_length(info, st.dma.mode, st.dma.size0, st.dma.size1, &st.dma.dst);
 			if (st.dma.dst.region >= 0)
 				info->output_region[st.dma.dst.region] = true;
-			dev_info(ddev->dev, "cmdstream: DMA SRC:%d:%llx+%llx DST:%d:%llx+%llx\n",
+			dev_info(ddev->dev, "cmd: DMA SRC:%d:0x%llx+0x%llx DST:%d:0x%llx+0x%llx\n",
 				 st.dma.src.region, st.dma.src.offset, srclen,
 				 st.dma.dst.region, st.dma.dst.offset, dstlen);
 			break;
@@ -548,8 +548,7 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 	for (i = 0; i < NPU_BASEP_REGION_MAX; i++) {
 		if (!info->region_size[i])
 			continue;
-		dev_info(ddev->dev, "region %d max size: %llx\n",
-				i, info->region_size[i]);
+		dev_info(ddev->dev, "region %d max size: 0x%llx\n", i, info->region_size[i]);
 	}
 
 	bo->info = info;
