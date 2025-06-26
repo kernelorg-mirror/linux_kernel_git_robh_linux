@@ -236,6 +236,11 @@ static int ethos_device_suspend(struct device *dev)
 	return 0;
 }
 
+static bool ethos_is_u65(const struct ethos_device *ethosdev)
+{
+	return FIELD_GET(ID_ARCH_MAJOR_MASK, ethosdev->npu_info.id) == 1;
+}
+
 static int ethos_reset(struct ethos_device *ethosdev)
 {
 	int ret;
@@ -253,7 +258,9 @@ static int ethos_reset(struct ethos_device *ethosdev)
 //		return -EINVAL;
 	}
 	// TODO AXI port config, defaults might work
-
+	if (ethos_is_u65(ethosdev)) {
+		writel_relaxed(0x1f3f0032, ethosdev->regs + NPU_REG_AXILIMIT0);
+	}
 //	writel_relaxed(ethosdev->sramphys, ethosdev->regs + NPU_REGBASEP(1));	// SRAM
 
 	// FIXME, aborts

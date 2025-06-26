@@ -24,6 +24,7 @@ struct gen_pool;
 #define NPU_REG_PROT		0x0024
 #define NPU_REG_CONFIG		0x0028
 #define NPU_REG_REGIONCFG	0x003C
+#define NPU_REG_AXILIMIT0	0x0040
 
 #define NPU_REG_BASEP(x)	(0x0080 + (x)*8)
 #define NPU_REG_BASEP_HI(x)	(0x0084 + (x)*8)
