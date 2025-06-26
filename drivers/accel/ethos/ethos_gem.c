@@ -276,11 +276,13 @@ static void calc_sizes(struct drm_device *ddev,
 			op, str, st->ofm.region, st->ofm.base[0], len);
 }
 
-static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
-					struct ethos_gem_object *bo, u32 size)
+static int
+ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
+				      u32 __user *ucmds,
+				      struct ethos_gem_object *bo, u32 size)
 {
 	struct ethos_validated_cmdstream_info *info;
-	u32 *cmds = bo->base.vaddr;
+	u32 *bocmds = bo->base.vaddr;
 	struct cmd_state st = {};
 	int i;
 
@@ -289,10 +291,26 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 		return -ENOMEM;
 	info->cmd_size = size;
 
-	for (i = 0; i < size/4; i++, cmds++) {
+	for (i = 0; i < size/4; i++) {
 		bool use_ifm, use_ifm2, use_scale;
-		u16 cmd = *cmds;
-		u16 param = *cmds >> 16;
+		u32 cmds[2];
+		u64 addr;
+
+		if (get_user(cmds[0], ucmds++))
+			goto fault;
+
+		bocmds[i] = cmds[0];
+
+		u16 cmd = cmds[0];
+		u16 param = cmds[0] >> 16;
+
+		if (cmd & 0x4000) {
+			if (get_user(cmds[1], ucmds++))
+				goto fault;
+			i++;
+			bocmds[i] = cmds[1];
+			addr = cmd_to_addr(cmds);
+		}
 
 		switch(cmd) {
 		case 0x10: // NPU_OP_DMA_START
@@ -366,16 +384,16 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 		case 0x4001: // NPU_SET_IFM_BASE1
 		case 0x4002: // NPU_SET_IFM_BASE2
 		case 0x4003: // NPU_SET_IFM_BASE3
-			st.ifm.base[cmd & 0x3] = cmd_to_addr(cmds);
+			st.ifm.base[cmd & 0x3] = addr;
 			break;
 		case 0x4004: // NPU_SET_IFM_STRIDE_X
-			st.ifm.stride_x = cmd_to_addr(cmds);
+			st.ifm.stride_x = addr;
 			break;
 		case 0x4005: // NPU_SET_IFM_STRIDE_Y
-			st.ifm.stride_y = cmd_to_addr(cmds);
+			st.ifm.stride_y = addr;
 			break;
 		case 0x4006: // NPU_SET_IFM_STRIDE_C
-			st.ifm.stride_c = cmd_to_addr(cmds);
+			st.ifm.stride_c = addr;
 			break;
 
 		case 0x111: // NPU_SET_OFM_WIDTH_M1
@@ -406,16 +424,16 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 		case 0x4011: // NPU_SET_OFM_BASE1
 		case 0x4012: // NPU_SET_OFM_BASE2
 		case 0x4013: // NPU_SET_OFM_BASE3
-			st.ofm.base[cmd & 0x3] = cmd_to_addr(cmds);
+			st.ofm.base[cmd & 0x3] = addr;
 			break;
 		case 0x4014: // NPU_SET_OFM_STRIDE_X
-			st.ofm.stride_x = cmd_to_addr(cmds);
+			st.ofm.stride_x = addr;
 			break;
 		case 0x4015: // NPU_SET_OFM_STRIDE_Y
-			st.ofm.stride_y = cmd_to_addr(cmds);
+			st.ofm.stride_y = addr;
 			break;
 		case 0x4016: // NPU_SET_OFM_STRIDE_C
-			st.ofm.stride_c = cmd_to_addr(cmds);
+			st.ofm.stride_c = addr;
 			break;
 
 		case 0x180: // NPU_SET_IFM2_BROADCAST
@@ -440,16 +458,16 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 		case 0x4081: // NPU_SET_IFM2_BASE1
 		case 0x4082: // NPU_SET_IFM2_BASE2
 		case 0x4083: // NPU_SET_IFM2_BASE3
-			st.ifm2.base[cmd & 0x3] = cmd_to_addr(cmds);
+			st.ifm2.base[cmd & 0x3] = addr;
 			break;
 		case 0x4084: // NPU_SET_IFM_STRIDE_X
-			st.ifm2.stride_x = cmd_to_addr(cmds);
+			st.ifm2.stride_x = addr;
 			break;
 		case 0x4085: // NPU_SET_IFM_STRIDE_Y
-			st.ifm2.stride_y = cmd_to_addr(cmds);
+			st.ifm2.stride_y = addr;
 			break;
 		case 0x4086: // NPU_SET_IFM2_STRIDE_C
-			st.ifm2.stride_c = cmd_to_addr(cmds);
+			st.ifm2.stride_c = addr;
 			break;
 
 		case 0x128: // NPU_SET_WEIGHT_REGION
@@ -459,28 +477,28 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 			st.scale[0].region = param & 0x7;
 			break;
 		case 0x4020: // NPU_SET_WEIGHT_BASE
-			st.weight[0].base = cmd_to_addr(cmds);
+			st.weight[0].base = addr;
 			break;
 		case 0x4021: // NPU_SET_WEIGHT_LENGTH
 			st.weight[0].length = cmds[1];
 			break;
 		case 0x4022: // NPU_SET_SCALE_BASE
-			st.scale[0].base = cmd_to_addr(cmds);
+			st.scale[0].base = addr;
 			break;
 		case 0x4023: // NPU_SET_SCALE_LENGTH
 			st.scale[0].length = cmds[1];
 			break;
 		case 0x4090: // NPU_SET_WEIGHT1_BASE
-			st.weight[1].base = cmd_to_addr(cmds);
+			st.weight[1].base = addr;
 			break;
 		case 0x4091: // NPU_SET_WEIGHT1_LENGTH
 			st.weight[1].length = cmds[1];
 			break;
 		case 0x4092: // NPU_SET_SCALE1_BASE/NPU_SET_WEIGHT2_BASE
 			if (0 /*U85*/)
-				st.weight[2].base = cmd_to_addr(cmds);
+				st.weight[2].base = addr;
 			else
-				st.scale[1].base = cmd_to_addr(cmds);
+				st.scale[1].base = addr;
 			break;
 		case 0x4093: // NPU_SET_SCALE1_LENGTH/NPU_SET_WEIGHT2_LENGTH
 			if (0 /*U85*/)
@@ -489,7 +507,7 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 				st.scale[1].length = cmds[1];
 			break;
 		case 0x4094: // NPU_SET_WEIGHT3_BASE
-			st.weight[3].base = cmd_to_addr(cmds);
+			st.weight[3].base = addr;
 			break;
 		case 0x4095: // NPU_SET_WEIGHT3_LENGTH
 			st.weight[3].length = cmds[1];
@@ -515,34 +533,30 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 			st.dma.size1 = param;
 			break;
 		case 0x4033: // NPU_SET_DMA0_SRC_STRIDE0
-			st.dma.src.stride[0] = (s64)cmd_to_addr(cmds);
+			st.dma.src.stride[0] = ((s64)addr << 24) >> 24;
 			break;
 		case 0x4034: // NPU_SET_DMA0_SRC_STRIDE1
-			st.dma.src.stride[1] = (s64)cmd_to_addr(cmds);
+			st.dma.src.stride[1] = ((s64)addr << 24) >> 24;
 			break;
 		case 0x4035: // NPU_SET_DMA0_DST_STRIDE0
-			st.dma.dst.stride[0] = (s64)cmd_to_addr(cmds);
+			st.dma.dst.stride[0] = ((s64)addr << 24) >> 24;
 			break;
 		case 0x4036: // NPU_SET_DMA0_DST_STRIDE1
-			st.dma.dst.stride[1] = (s64)cmd_to_addr(cmds);
+			st.dma.dst.stride[1] = ((s64)addr << 24) >> 24;
 			break;
 		case 0x4030: // NPU_SET_DMA0_SRC
-			st.dma.src.offset = cmd_to_addr(cmds);
+			st.dma.src.offset = addr;
 			break;
 		case 0x4031: // NPU_SET_DMA0_DST
-			st.dma.dst.offset = cmd_to_addr(cmds);
+			st.dma.dst.offset = addr;
 			break;
 		case 0x4032: // NPU_SET_DMA0_LEN
-			st.dma.src.len = st.dma.dst.len = cmd_to_addr(cmds);
+			st.dma.src.len = st.dma.dst.len = addr;
 			break;
 		default:
 			break;
 		}
 
-		if (cmd & 0x4000) {
-			i++;
-			cmds++;
-		}
 	}
 
 	for (i = 0; i < NPU_BASEP_REGION_MAX; i++) {
@@ -553,6 +567,10 @@ static int ethos_gem_cmdstream_validate(struct drm_device *ddev,
 
 	bo->info = info;
 	return 0;
+
+fault:
+	kfree(info);
+	return -EFAULT;
 }
 
 /**
@@ -584,14 +602,9 @@ ethos_gem_cmdstream_create(struct drm_file *file,
 	bo->flags = flags;
 	dev_info(ddev->dev, "created cmd BO at %llx\n", (u64)bo->base.vaddr);
 
-	if (copy_from_user(bo->base.vaddr,
-			     (void __user *)(uintptr_t)data,
-			     *size)) {
-		ret = -EFAULT;
+	ret = ethos_gem_cmdstream_copy_and_validate(ddev, (void __user *)(uintptr_t)data, bo, *size);
+	if (ret)
 		goto fail;
-	}
-
-	ethos_gem_cmdstream_validate(ddev, bo, *size);
 
 	/*
 	 * Allocate an id of idr table where the obj is registered
