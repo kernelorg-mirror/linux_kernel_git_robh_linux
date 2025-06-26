@@ -101,7 +101,7 @@ uint32_t cmds[] = {
 	0xffff0000, // cmd0.NPU_OP_STOP               65535
 };
 
-int main(int argc, char **argv)
+void dma_test(void)
 {
 	int fd, ret;
 	bo_handle cmd_handle;
@@ -127,5 +127,40 @@ int main(int argc, char **argv)
 
 	printf("src %llx: 0x%x 0x%x 0x%x 0x%x\n", src_bo, src_bo[0], src_bo[1], src_bo[2], src_bo[3]);
 	printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo, dst_bo[0], dst_bo[1], dst_bo[2], dst_bo[3]);
+	close(fd);
+	sleep(1);
+}
+
+void cmd_validate_test(const char *file)
+{
+	int fd, cmdfd, ret, size;
+	bo_handle cmd_handle;
+	char buf[0x10000];
+
+	if (!file) {
+		printf("Missing cmd file\n");
+		return;
+	}
+
+	fd = open("/dev/accel/accel0", O_RDWR | O_CLOEXEC);
+
+	cmdfd = open(file, O_RDWR);
+	lseek(cmdfd, 0x20, SEEK_SET);
+	size = read(cmdfd, buf, 0x10000);
+
+	printf("cmd stream is %d bytes\n", size);
+	cmd_handle = cmd_bo_create(fd, buf, size);
+
+	close(fd);
+	close(cmdfd);
+}
+
+int main(int argc, char **argv)
+{
+	dma_test();
+
+	if (argc == 2)
+		cmd_validate_test(argv[1]);
+
 	return 0;
 }
