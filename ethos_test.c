@@ -57,7 +57,7 @@ int bo_wait(int fd, bo_handle handle)
 }
 
 
-bo_handle cmd_bo_create(int fd, void *buf, int size)
+bo_handle cmd_bo_create(int fd, const void *buf, int size)
 {
 	struct drm_ethos_cmdstream_bo_create cmd_bo_create = {
 		.size = size,
@@ -68,11 +68,12 @@ bo_handle cmd_bo_create(int fd, void *buf, int size)
 	return cmd_bo_create.handle;
 }
 
-int submit_job(int fd, bo_handle cmd, bo_handle *region_bos)
+int submit_job(int fd, bo_handle cmd, bo_handle *region_bos, int sram_size)
 {
 	struct drm_ethos_job jobs[] = {
 		{
 			.cmd_bo = cmd,
+			.sram_size = sram_size,
 		},
 	};
 
@@ -89,24 +90,23 @@ int submit_job(int fd, bo_handle cmd, bo_handle *region_bos)
 
 #define BO_SIZE 0x00100000UL
 
-uint32_t cmds[] = {
-	0x00000123,
-	0x00000130, // cmd0.NPU_SET_DMA0_SRC_REGION
-	0x00004030, 0x00000000, // cmd1.NPU_SET_DMA0_SRC
-	0x00020131, // cmd0.NPU_SET_DMA0_DST_REGION
-	0x00004031, 0x00000000, // cmd1.NPU_SET_DMA0_DST
-	0x00004032, BO_SIZE, // cmd1.NPU_SET_DMA0_LEN
-	0x00000010, // cmd0.NPU_OP_DMA_START
-	0x00000011, // cmd0.NPU_OP_DMA_WAIT               0
-	0xffff0000, // cmd0.NPU_OP_STOP               65535
-};
-
 void dma_test(void)
 {
 	int fd, ret;
 	bo_handle cmd_handle;
 	bo_handle region_bos[8] = {};
 	uint32_t *src_bo, *dst_bo;
+	static const uint32_t cmds[] = {
+		0x00000123,
+		0x00000130, // cmd0.NPU_SET_DMA0_SRC_REGION
+		0x00004030, 0x00000000, // cmd1.NPU_SET_DMA0_SRC
+		0x00020131, // cmd0.NPU_SET_DMA0_DST_REGION
+		0x00004031, 0x00000000, // cmd1.NPU_SET_DMA0_DST
+		0x00004032, BO_SIZE, // cmd1.NPU_SET_DMA0_LEN
+		0x00000010, // cmd0.NPU_OP_DMA_START
+		0x00000011, // cmd0.NPU_OP_DMA_WAIT               0
+		0xffff0000, // cmd0.NPU_OP_STOP               65535
+	};
 
 	fd = open("/dev/accel/accel0", O_RDWR | O_CLOEXEC);
 	dev_query(fd);
@@ -119,17 +119,70 @@ void dma_test(void)
 
 	printf("cmd buffer = %p\n", cmds);
 	cmd_handle = cmd_bo_create(fd, cmds, sizeof(cmds));
-	submit_job(fd, cmd_handle, region_bos);
+	submit_job(fd, cmd_handle, region_bos, 0);
 
 	ret = bo_wait(fd, region_bos[2]);
 	if (ret)
 		printf("error waiting on BO - %d\n", ret);
 
-	printf("src %llx: 0x%x 0x%x 0x%x 0x%x\n", src_bo, src_bo[0], src_bo[1], src_bo[2], src_bo[3]);
+	//src_bo += BO_SIZE/4 - 4;
+	//printf("src %llx: 0x%x 0x%x 0x%x 0x%x\n", src_bo, src_bo[0], src_bo[1], src_bo[2], src_bo[3]);
+	dst_bo += BO_SIZE/4 - 4;
 	printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo, dst_bo[0], dst_bo[1], dst_bo[2], dst_bo[3]);
 	close(fd);
 	sleep(1);
 }
+
+#define SRAM_SIZE 0x20000
+
+void sram_dma_test(void)
+{
+	int fd, ret;
+	bo_handle cmd_handle;
+	bo_handle region_bos[8] = {};
+	uint32_t *src_bo, *dst_bo;
+	static const uint32_t cmds[] = {
+		0x00000123,
+		0x00000130, // cmd0.NPU_SET_DMA0_SRC_REGION
+		0x00004030, 0x00000000, // cmd1.NPU_SET_DMA0_SRC
+		0x00020131, // cmd0.NPU_SET_DMA0_DST_REGION
+		0x00004031, 0x00000000, // cmd1.NPU_SET_DMA0_DST
+		0x00004032, SRAM_SIZE, // cmd1.NPU_SET_DMA0_LEN
+		0x00000010, // cmd0.NPU_OP_DMA_START
+		0x00000011, // cmd0.NPU_OP_DMA_WAIT               0
+		0x00020130, // cmd0.NPU_SET_DMA0_SRC_REGION
+		0x00004030, 0x00000000, // cmd1.NPU_SET_DMA0_SRC
+		0x00010131, // cmd0.NPU_SET_DMA0_DST_REGION
+		0x00004031, 0x00000000, // cmd1.NPU_SET_DMA0_DST
+		0x00004032, SRAM_SIZE, // cmd1.NPU_SET_DMA0_LEN
+		0x00000010, // cmd0.NPU_OP_DMA_START
+		0xffff0000, // cmd0.NPU_OP_STOP               65535
+	};
+
+	fd = open("/dev/accel/accel0", O_RDWR | O_CLOEXEC);
+	dev_query(fd);
+
+	src_bo = bo_create(fd, SRAM_SIZE, &region_bos[0]);
+	dst_bo = bo_create(fd, SRAM_SIZE, &region_bos[1]);
+
+	for (int i = 0; i < SRAM_SIZE/4; i++)
+		src_bo[i] = 0xdeadbeef;
+
+	printf("cmd buffer = %p\n", cmds);
+	cmd_handle = cmd_bo_create(fd, cmds, sizeof(cmds));
+	submit_job(fd, cmd_handle, region_bos, SRAM_SIZE);
+
+	ret = bo_wait(fd, region_bos[1]);
+	if (ret)
+		printf("error waiting on BO - %d\n", ret);
+
+	dst_bo += SRAM_SIZE/4 - 4;
+	printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo, dst_bo[0], dst_bo[1], dst_bo[2], dst_bo[3]);
+	close(fd);
+	sleep(1);
+}
+
+
 
 void cmd_validate_test(const char *file)
 {
@@ -158,6 +211,7 @@ void cmd_validate_test(const char *file)
 int main(int argc, char **argv)
 {
 	dma_test();
+	sram_dma_test();
 
 	if (argc == 2)
 		cmd_validate_test(argv[1]);
