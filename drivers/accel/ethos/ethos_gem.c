@@ -36,9 +36,7 @@ static const struct drm_gem_object_funcs ethos_gem_funcs = {
 	.print_info = drm_gem_dma_object_print_info,
 	.get_sg_table = drm_gem_dma_object_get_sg_table,
 	.vmap = drm_gem_dma_object_vmap,
-//	.vunmap = drm_gem_dma_object_vunmap,
 	.mmap = ethos_gem_mmap,
-//	.status = ethos_gem_status,
 	.export = drm_gem_prime_export,
 	.vm_ops = &drm_gem_dma_vm_ops,
 };
