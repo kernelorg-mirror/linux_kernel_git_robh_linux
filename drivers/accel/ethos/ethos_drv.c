@@ -23,96 +23,6 @@
 #include "ethos_gem.h"
 #include "ethos_job.h"
 
-/**
- * DOC: user <-> kernel object copy helpers.
- */
-
-/**
- * ethos_set_uobj() - Copy kernel object to user object.
- * @usr_ptr: Users pointer.
- * @usr_size: Size of the user object.
- * @min_size: Minimum size for this object.
- * @kern_size: Size of the kernel object.
- * @in: Address of the kernel object to copy.
- *
- * Helper automating kernel -> user object copies.
- *
- * Don't use this function directly, use ETHOS_UOBJ_SET() instead.
- *
- * Return: 0 on success, a negative error code otherwise.
- */
-static int
-ethos_set_uobj(u64 usr_ptr, u32 usr_size, u32 min_size, u32 kern_size, const void *in)
-{
-	/* User size shouldn't be smaller than the minimal object size. */
-	if (usr_size < min_size)
-		return -EINVAL;
-
-	if (copy_to_user(u64_to_user_ptr(usr_ptr), in, min_t(u32, usr_size, kern_size)))
-		return -EFAULT;
-
-	/* When the kernel object is smaller than the user object, we fill the gap with
-	 * zeros.
-	 */
-	if (usr_size > kern_size &&
-	    clear_user(u64_to_user_ptr(usr_ptr + kern_size), usr_size - kern_size)) {
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
-/**
- * ETHOS_UOBJ_MIN_SIZE_INTERNAL() - Get the minimum user object size
- * @_typename: Object type.
- * @_last_mandatory_field: Last mandatory field.
- *
- * Get the minimum user object size based on the last mandatory field name,
- * A.K.A, the name of the last field of the structure at the time this
- * structure was added to the uAPI.
- *
- * Don't use directly, use ETHOS_UOBJ_DECL() instead.
- */
-#define ETHOS_UOBJ_MIN_SIZE_INTERNAL(_typename, _last_mandatory_field) \
-	(offsetof(_typename, _last_mandatory_field) + \
-	 sizeof(((_typename *)NULL)->_last_mandatory_field))
-
-/**
- * ETHOS_UOBJ_DECL() - Declare a new uAPI object whose subject to
- * evolutions.
- * @_typename: Object type.
- * @_last_mandatory_field: Last mandatory field.
- *
- * Should be used to extend the ETHOS_UOBJ_MIN_SIZE() list.
- */
-#define ETHOS_UOBJ_DECL(_typename, _last_mandatory_field) \
-	_typename : ETHOS_UOBJ_MIN_SIZE_INTERNAL(_typename, _last_mandatory_field)
-
-/**
- * ETHOS_UOBJ_MIN_SIZE() - Get the minimum size of a given uAPI object
- * @_obj_name: Object to get the minimum size of.
- *
- * Don't use this macro directly, it's automatically called by
- * ETHOS_UOBJ_{SET,GET_ARRAY}().
- */
-#define ETHOS_UOBJ_MIN_SIZE(_obj_name) \
-	_Generic(_obj_name, \
-		 ETHOS_UOBJ_DECL(struct drm_ethos_npu_info, pad))
-
-/**
- * ETHOS_UOBJ_SET() - Copy a kernel object to a user object.
- * @_dest_usr_ptr: User pointer to copy to.
- * @_usr_size: Size of the user object.
- * @_src_obj: Kernel object to copy (not a pointer).
- *
- * Return: 0 on success, a negative error code otherwise.
- */
-#define ETHOS_UOBJ_SET(_dest_usr_ptr, _usr_size, _src_obj) \
-	ethos_set_uobj(_dest_usr_ptr, _usr_size, \
-			 ETHOS_UOBJ_MIN_SIZE(_src_obj), \
-			 sizeof(_src_obj), &(_src_obj))
-
-
 static int ethos_ioctl_dev_query(struct drm_device *ddev, void *data, struct drm_file *file)
 {
 	struct ethos_device *ethosdev = container_of(ddev, struct ethos_device, base);
@@ -130,7 +40,12 @@ static int ethos_ioctl_dev_query(struct drm_device *ddev, void *data, struct drm
 
 	switch (args->type) {
 	case DRM_ETHOS_DEV_QUERY_NPU_INFO:
-		return ETHOS_UOBJ_SET(args->pointer, args->size, ethosdev->npu_info);
+		if (args->size < offsetofend(struct drm_ethos_npu_info, sram_size))
+			return -EINVAL;
+		return copy_struct_to_user(u64_to_user_ptr(args->pointer),
+					   args->size,
+					   &ethosdev->npu_info,
+					   sizeof(ethosdev->npu_info), NULL);
 	default:
 		return -EINVAL;
 	}
