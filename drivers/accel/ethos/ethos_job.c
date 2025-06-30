@@ -505,6 +505,7 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 	struct ethos_device *edev = to_ethos_device(dev);
 	struct ethos_file_priv *file_priv = file->driver_priv;
 	struct ethos_job *ejob = NULL;
+	struct ethos_validated_cmdstream_info *cmd_info;
 	int ret = 0;
 
 	if (job->region_bo_handles[ETHOS_SRAM_REGION] && job->sram_size)
@@ -529,6 +530,7 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 		goto out_put_job;
 
 	ejob->cmd_bo = drm_gem_object_lookup(file, job->cmd_bo);
+	cmd_info = to_ethos_bo(ejob->cmd_bo)->info;
 	if (!ejob->cmd_bo)
 		goto out_cleanup_job;
 
@@ -541,11 +543,10 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 		gem = drm_gem_object_lookup(file, job->region_bo_handles[i]);
 
 		/* Verify the command stream doesn't have accesses outside the BO */
-		if (to_ethos_bo(ejob->cmd_bo)->info->region_size[i] > gem->size) {
+		if (cmd_info->region_size[i] > gem->size) {
 			dev_err(dev->dev,
 				"cmd stream region %d size greater than BO size (%lld > %ld)\n",
-				i, to_ethos_bo(ejob->cmd_bo)->info->region_size[i],
-				gem->size);
+				i, cmd_info->region_size[i], gem->size);
 			ret = -EOVERFLOW;
 			goto out_cleanup_job;
 		}
