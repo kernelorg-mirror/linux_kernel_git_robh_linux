@@ -1283,6 +1283,9 @@
 			clocks = <&clk IMX93_CLK_ML>, <&clk IMX93_CLK_ML_APB>;
 			clock-names = "core", "apb";
 			//sram = <&sram>;
+			assigned-clocks = <&clk IMX93_CLK_ML>, <&clk IMX93_CLK_ML_APB>;
+			assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1>, <&clk IMX93_CLK_24M>;
+			assigned-clock-rates = <800000000>, <24000000>;
 		};
 
 		media_blk_ctrl: system-controller@4ac10000 {
