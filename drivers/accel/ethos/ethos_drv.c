@@ -62,7 +62,7 @@ static int ethos_ioctl_bo_create(struct drm_device *ddev, void *data,
 	if (!drm_dev_enter(ddev, &cookie))
 		return -ENODEV;
 
-	if (!args->size || args->pad || (args->flags & ~ETHOS_BO_FLAGS)) {
+	if (!args->size || (args->flags & ~ETHOS_BO_FLAGS)) {
 		ret = -EINVAL;
 		goto out_dev_exit;
 	}

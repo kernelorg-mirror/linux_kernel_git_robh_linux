@@ -547,7 +547,7 @@ int ethos_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *file
 	int ret = 0;
 	unsigned int i = 0;
 
-	if (args->reserved != 0) {
+	if (args->pad) {
 		drm_dbg(dev, "Reserved field in drm_ethos_submit struct should be 0.\n");
 		return -EINVAL;
 	}

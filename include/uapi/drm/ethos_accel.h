@@ -71,9 +71,6 @@ struct drm_ethos_npu_info {
 	__u32 config;
 
 	__u32 sram_size;
-
-	/** @pad: MBZ. */
-	__u32 pad;
 };
 /**
  * struct drm_ethos_dev_query - Arguments passed to DRM_ETHOS_IOCTL_DEV_QUERY
@@ -133,9 +130,6 @@ struct drm_ethos_bo_create {
 	 * Object handles are nonzero.
 	 */
 	__u32 handle;
-
-	/** @pad: MBZ. */
-	__u32 pad;
 };
 
 /**
@@ -195,7 +189,7 @@ struct drm_ethos_job {
 
 	__u32 region_bo_handles[8];
 
-	__u32 reserved;
+	__u32 pad;
 };
 
 /**
@@ -211,7 +205,7 @@ struct drm_ethos_submit {
 	__u32 job_count;
 
 	/** Reserved, must be zero. */
-	__u32 reserved;
+	__u32 pad;
 };
 
 
