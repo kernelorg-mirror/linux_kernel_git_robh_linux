@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 or MIT */
-/* Copyright 2018 Marty E. Plummer <hanetzer@startmail.com> */
+/* SPDX-License-Identifier: GPL-2.0-only or MIT */
+/* Copyright 2025 Arm, Ltd. */
 
 #ifndef __ETHOS_DEVICE_H__
 #define __ETHOS_DEVICE_H__

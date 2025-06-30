@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
+/* Copyright 2025 Arm, Ltd. */
 #ifndef __ETHOS_DRV_H__
 #define __ETHOS_DRV_H__
 

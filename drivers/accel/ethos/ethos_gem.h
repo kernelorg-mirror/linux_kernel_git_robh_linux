@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 or MIT */
-/* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
-/* Copyright 2023 Collabora ltd. */
+/* Copyright 2025 Arm, Ltd. */
 
 #ifndef __ETHOS_GEM_H__
 #define __ETHOS_GEM_H__

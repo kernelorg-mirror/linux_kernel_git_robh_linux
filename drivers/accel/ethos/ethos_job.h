@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
 /* Copyright 2024-2025 Tomeu Vizoso <tomeu@tomeuvizoso.net> */
+/* Copyright 2025 Arm, Ltd. */
 
 #ifndef __ETHOS_JOB_H__
 #define __ETHOS_JOB_H__

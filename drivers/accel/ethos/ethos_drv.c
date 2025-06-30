@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or MIT
+// SPDX-License-Identifier: GPL-2.0-only or MIT
 // Copyright (C) 2025 Arm, Ltd.
 
 #include <linux/clk.h>

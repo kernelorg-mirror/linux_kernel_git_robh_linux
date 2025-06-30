@@ -1,7 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
-/* Copyright 2019 Collabora ltd. */
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /* Copyright 2024-2025 Tomeu Vizoso <tomeu@tomeuvizoso.net> */
+/* Copyright 2025 Arm, Ltd. */
 
 #define DEBUG
 

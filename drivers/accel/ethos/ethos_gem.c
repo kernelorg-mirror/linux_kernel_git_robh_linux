@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0 or MIT
-/* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
-/* Copyright 2023 Collabora ltd. */
+// SPDX-License-Identifier: GPL-2.0-only or MIT
+/* Copyright 2025 Arm, Ltd. */
 
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
