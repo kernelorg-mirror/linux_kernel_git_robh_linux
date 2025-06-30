@@ -519,9 +519,24 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 		goto out_cleanup_job;
 
 	for (int i = 0; i < NPU_BASEP_REGION_MAX; i++) {
+		struct drm_gem_object *gem;
+
 		if (job->region_bo_handles[i] == 0)
 			continue;
-		ejob->region_bo[ejob->region_cnt] = drm_gem_object_lookup(file, job->region_bo_handles[i]);
+
+		gem = drm_gem_object_lookup(file, job->region_bo_handles[i]);
+
+		/* Verify the command stream doesn't have accesses outside the BO */
+		if (to_ethos_bo(ejob->cmd_bo)->info->region_size[i] > gem->size) {
+			dev_err(dev->dev,
+				"cmd stream region %d size greater than BO size (%lld > %ld)\n",
+				i, to_ethos_bo(ejob->cmd_bo)->info->region_size[i],
+				gem->size);
+			ret = -EOVERFLOW;
+			goto out_cleanup_job;
+		}
+
+		ejob->region_bo[ejob->region_cnt] = gem;
 		ejob->region_bo_num[ejob->region_cnt] = i;
 		ejob->region_cnt++;
 	}
@@ -565,12 +580,14 @@ int ethos_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *file
 	}
 
 	for (i = 0; i < args->job_count; i++) {
-		if (jobs[i].reserved != 0) {
+		if (jobs[i].pad != 0) {
 			drm_dbg(dev, "Reserved field in drm_ethos_job struct should be 0.\n");
 			return -EINVAL;
 		}
 
-		ethos_ioctl_submit_job(dev, file, &jobs[i]);
+		ret = ethos_ioctl_submit_job(dev, file, &jobs[i]);
+		if (ret)
+			break;
 	}
 
 exit:
