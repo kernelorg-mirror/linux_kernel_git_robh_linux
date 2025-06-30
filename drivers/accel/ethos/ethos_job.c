@@ -540,6 +540,12 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 		if (job->region_bo_handles[i] == 0)
 			continue;
 
+		/* Don't allow a region to point to the cmd BO */
+		if (job->region_bo_handles[i] == job->cmd_bo) {
+			ret = -EINVAL;
+			goto out_cleanup_job;
+		}
+
 		gem = drm_gem_object_lookup(file, job->region_bo_handles[i]);
 
 		/* Verify the command stream doesn't have accesses outside the BO */
