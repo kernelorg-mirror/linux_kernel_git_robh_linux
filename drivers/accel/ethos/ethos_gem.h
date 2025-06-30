@@ -7,8 +7,6 @@
 #include "ethos_device.h"
 #include <drm/drm_gem_dma_helper.h>
 
-#include <linux/iosys-map.h>
-
 struct ethos_validated_cmdstream_info {
 	u32 cmd_size;
 	u64 region_size[NPU_BASEP_REGION_MAX];

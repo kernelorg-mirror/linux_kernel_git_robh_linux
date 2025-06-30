@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only or MIT
 /* Copyright 2025 Arm, Ltd. */
 
-#include <linux/dma-buf.h>
-#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 

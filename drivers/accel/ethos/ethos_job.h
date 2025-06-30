@@ -5,11 +5,10 @@
 #ifndef __ETHOS_JOB_H__
 #define __ETHOS_JOB_H__
 
-#include <drm/drm_drv.h>
+#include <linux/kref.h>
 #include <drm/gpu_scheduler.h>
 
-#include "ethos_device.h"
-
+struct ethos_device;
 struct ethos_file_priv;
 
 struct ethos_job {
