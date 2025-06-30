@@ -45,6 +45,9 @@ struct gen_pool;
 #define STATUS_CMD_END_REACHED	BIT(5)
 
 #define CMD_CLEAR_IRQ		BIT(1)
+
+#define ETHOS_SRAM_REGION	2	/* Matching Vela compiler */
+
 /**
  * struct ethos_device - Ethos device
  */

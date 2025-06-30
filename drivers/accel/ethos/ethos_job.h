@@ -19,6 +19,7 @@ struct ethos_job {
 	struct drm_gem_object *region_bo[NPU_BASEP_REGION_MAX];
 	u8 region_bo_num[NPU_BASEP_REGION_MAX];
 	u8 region_cnt;
+	u32 sram_size;
 
 	/* Fence to be signaled by drm-sched once its done with the job */
 	struct dma_fence *inference_done_fence;

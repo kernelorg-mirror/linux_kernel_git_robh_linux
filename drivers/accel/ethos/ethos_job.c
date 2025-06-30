@@ -4,17 +4,19 @@
 
 #define DEBUG
 
-#include "ethos_gem.h"
-#include <drm/drm_file.h>
-#include <drm/drm_gem.h>
-#include <drm/drm_gem_dma_helper.h>
-#include <drm/ethos_accel.h>
+#include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_file.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_dma_helper.h>
+#include <drm/ethos_accel.h>
+
 #include "ethos_device.h"
 #include "ethos_drv.h"
+#include "ethos_gem.h"
 #include "ethos_job.h"
 
 #define JOB_TIMEOUT_MS 500
@@ -75,6 +77,11 @@ static void ethos_job_hw_submit(struct ethos_device *dev, struct ethos_job *job)
 		writel_relaxed(lower_32_bits(bo->dma_addr), dev->regs + NPU_REG_BASEP(region));
 		writel_relaxed(upper_32_bits(bo->dma_addr), dev->regs + NPU_REG_BASEP_HI(region));
 		dev_info(dev->base.dev, "Region %d base addr = %llx\n", region, bo->dma_addr);
+	}
+
+	if (job->sram_size) {
+		writel_relaxed(lower_32_bits(dev->sramphys), dev->regs + NPU_REG_BASEP(ETHOS_SRAM_REGION));
+		writel_relaxed(upper_32_bits(dev->sramphys), dev->regs + NPU_REG_BASEP_HI(ETHOS_SRAM_REGION));
 	}
 
 	writel_relaxed(lower_32_bits(cmd_bo->dma_addr), dev->regs + NPU_REG_QBASE);
@@ -500,6 +507,12 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 	struct ethos_job *ejob = NULL;
 	int ret = 0;
 
+	if (job->region_bo_handles[ETHOS_SRAM_REGION] && job->sram_size)
+		return -EINVAL;
+
+	if (gen_pool_size(edev->srampool) < job->sram_size)
+		return -EINVAL;
+
 	ejob = kzalloc(sizeof(*ejob), GFP_KERNEL);
 	if (!ejob)
 		return -ENOMEM;
@@ -507,6 +520,7 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 	kref_init(&ejob->refcount);
 
 	ejob->dev = edev;
+	ejob->sram_size = job->sram_size;
 
 	ret = drm_sched_job_init(&ejob->base,
 				 &file_priv->sched_entity,
@@ -580,11 +594,6 @@ int ethos_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *file
 	}
 
 	for (i = 0; i < args->job_count; i++) {
-		if (jobs[i].pad != 0) {
-			drm_dbg(dev, "Reserved field in drm_ethos_job struct should be 0.\n");
-			return -EINVAL;
-		}
-
 		ret = ethos_ioctl_submit_job(dev, file, &jobs[i]);
 		if (ret)
 			break;

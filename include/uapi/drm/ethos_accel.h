@@ -187,9 +187,9 @@ struct drm_ethos_job {
 	/** Input: BO handle for cmdstream. */
 	__u32 cmd_bo;
 
-	__u32 region_bo_handles[8];
+	__u32 sram_size;
 
-	__u32 pad;
+	__u32 region_bo_handles[8];
 };
 
 /**
