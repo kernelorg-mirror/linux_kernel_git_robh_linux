@@ -98,7 +98,6 @@ static int ethos_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 {
 	struct drm_ethos_bo_mmap_offset *args = data;
 	struct drm_gem_object *obj;
-	int ret;
 
 	if (args->pad)
 		return -EINVAL;
@@ -107,15 +106,9 @@ static int ethos_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto out;
-
 	args->offset = drm_vma_node_offset_addr(&obj->vma_node);
-
-out:
 	drm_gem_object_put(obj);
-	return ret;
+	return 0;
 }
 
 static int ethos_ioctl_cmdstream_bo_create(struct drm_device *ddev, void *data,
