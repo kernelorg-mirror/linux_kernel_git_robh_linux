@@ -262,7 +262,8 @@ static int ethos_reset(struct ethos_device *ethosdev)
 		writel_relaxed(0x1f3f0032, ethosdev->regs + NPU_REG_AXILIMIT0);
 	}
 
-	memset(ethosdev->sram, 0, ethosdev->npu_info.sram_size);
+	if (ethosdev->sram)
+		memset(ethosdev->sram, 0, ethosdev->npu_info.sram_size);
 
 	return 0;
 }
@@ -375,6 +376,9 @@ static void ethos_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(&ethosdev->base);
 	ethos_job_fini(ethosdev);
+	if (ethosdev->sram)
+		gen_pool_free(ethosdev->srampool, ethosdev->sramphys,
+			      ethosdev->npu_info.sram_size);
 }
 
 static const struct of_device_id dt_match[] = {
