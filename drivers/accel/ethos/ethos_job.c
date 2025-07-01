@@ -82,6 +82,7 @@ static void ethos_job_hw_submit(struct ethos_device *dev, struct ethos_job *job)
 	if (job->sram_size) {
 		writel_relaxed(lower_32_bits(dev->sramphys), dev->regs + NPU_REG_BASEP(ETHOS_SRAM_REGION));
 		writel_relaxed(upper_32_bits(dev->sramphys), dev->regs + NPU_REG_BASEP_HI(ETHOS_SRAM_REGION));
+		dev_info(dev->base.dev, "Region %d base addr = %llx (SRAM)\n", ETHOS_SRAM_REGION, dev->sramphys);
 	}
 
 	writel_relaxed(lower_32_bits(cmd_bo->dma_addr), dev->regs + NPU_REG_QBASE);
@@ -511,7 +512,7 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 	if (job->region_bo_handles[ETHOS_SRAM_REGION] && job->sram_size)
 		return -EINVAL;
 
-	if (gen_pool_size(edev->srampool) < job->sram_size)
+	if (edev->npu_info.sram_size < job->sram_size)
 		return -EINVAL;
 
 	ejob = kzalloc(sizeof(*ejob), GFP_KERNEL);

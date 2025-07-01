@@ -262,8 +262,7 @@ static int ethos_reset(struct ethos_device *ethosdev)
 		writel_relaxed(0x1f3f0032, ethosdev->regs + NPU_REG_AXILIMIT0);
 	}
 
-	// FIXME, aborts
-	// memset(ethosdev->sram, 0, ethosdev->npu_info.sram_size);
+	memset(ethosdev->sram, 0, ethosdev->npu_info.sram_size);
 
 	return 0;
 }
@@ -283,9 +282,11 @@ static int ethos_sram_init(struct ethos_device *ethosdev)
 							    ethosdev->npu_info.sram_size,
 							    &ethosdev->sramphys);
 	if (!ethosdev->sram) {
-		dev_err(ethosdev->base.dev, "failed to allocate from TX pool\n");
+		dev_err(ethosdev->base.dev, "failed to allocate from SRAM pool\n");
 		return -ENOMEM;
 	}
+
+	dev_info(ethosdev->base.dev, "%dKB SRAM available\n", ethosdev->npu_info.sram_size / 1024);
 
 	return 0;
 }
