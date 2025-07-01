@@ -250,7 +250,7 @@
 
 	sram: sram@20480000 {
 		compatible = "mmio-sram";
-		reg = <0x0 0x20480000 0x0 0xa0000>;
+		reg = <0x0 0x20480000 0x0 0x18000>;
 	};
 
 	soc@0 {
