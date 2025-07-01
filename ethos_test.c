@@ -133,7 +133,7 @@ void dma_test(void)
 	sleep(1);
 }
 
-#define SRAM_SIZE 0x20000
+#define SRAM_SIZE 0x10000
 
 void sram_dma_test(void)
 {
