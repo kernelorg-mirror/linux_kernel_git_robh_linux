@@ -377,7 +377,7 @@ static void ethos_remove(struct platform_device *pdev)
 	drm_dev_unregister(&ethosdev->base);
 	ethos_job_fini(ethosdev);
 	if (ethosdev->sram)
-		gen_pool_free(ethosdev->srampool, ethosdev->sramphys,
+		gen_pool_free(ethosdev->srampool, (unsigned long)ethosdev->sram,
 			      ethosdev->npu_info.sram_size);
 }
 
