@@ -1276,7 +1276,7 @@
 		};
 
 		npu@4a900000 {
-			compatible = "arm,ethos-u65";
+			compatible = "fsl,imx93-npu", "arm,ethos-u65";
 			reg = <0x4a900000 0x1000>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&mlmix>;
