@@ -26,14 +26,22 @@ enum drm_ethos_ioctl_id {
 	/** @DRM_ETHOS_BO_CREATE: Create a buffer object. */
 	DRM_ETHOS_BO_CREATE,
 
+	/** @DRM_ETHOS_BO_WAIT: Wait on a buffer object's fence. */
 	DRM_ETHOS_BO_WAIT,
+
 	/**
 	 * @DRM_ETHOS_BO_MMAP_OFFSET: Get the file offset to pass to
 	 * mmap to map a GEM object.
 	 */
 	DRM_ETHOS_BO_MMAP_OFFSET,
 
+	/**
+	 * @DRM_ETHOS_CMDSTREAM_BO_CREATE: Create a command stream buffer
+	 * object.
+	 */
 	DRM_ETHOS_CMDSTREAM_BO_CREATE,
+
+	/** @DRM_ETHOS_SUBMIT: Submit a job and BOs to run. */
 	DRM_ETHOS_SUBMIT,
 };
 
@@ -104,7 +112,10 @@ struct drm_ethos_dev_query {
  * enum drm_ethos_bo_flags - Buffer object flags, passed at creation time.
  */
 enum drm_ethos_bo_flags {
-	/** @DRM_ETHOS_BO_NO_MMAP: The buffer object will never be CPU-mapped in userspace. */
+	/**
+	 * @DRM_ETHOS_BO_NO_MMAP: The buffer object will never be CPU-mapped
+	 * in userspace.
+	 */
 	DRM_ETHOS_BO_NO_MMAP = (1 << 0),
 };
 
@@ -164,6 +175,7 @@ struct drm_ethos_bo_wait {
 struct drm_ethos_cmdstream_bo_create {
 	/* Size of the data argument. */
 	__u32 size;
+
 	/* Flags, currently must be 0. */
 	__u32 flags;
 
@@ -172,6 +184,7 @@ struct drm_ethos_cmdstream_bo_create {
 
 	/** Returned GEM handle for the BO. */
 	__u32 handle;
+
 	/* Pad, must be 0. */
 	__u32 pad;
 };
@@ -187,9 +200,12 @@ struct drm_ethos_job {
 	/** Input: BO handle for cmdstream. */
 	__u32 cmd_bo;
 
+	/** Input: Amount of SRAM to use. */
 	__u32 sram_size;
 
-	__u32 region_bo_handles[8];
+#define ETHOS_MAX_REGIONS	8
+	/** Input: Array of BO handles for each region. */
+	__u32 region_bo_handles[ETHOS_MAX_REGIONS];
 };
 
 /**
