@@ -37,7 +37,6 @@ static const struct drm_gem_object_funcs ethos_gem_funcs = {
 	.get_sg_table = drm_gem_dma_object_get_sg_table,
 	.vmap = drm_gem_dma_object_vmap,
 	.mmap = ethos_gem_mmap,
-	.export = drm_gem_prime_export,
 	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
@@ -65,7 +64,6 @@ struct drm_gem_object *ethos_gem_create_object(struct drm_device *ddev, size_t s
  * ethos_gem_create_with_handle() - Create a GEM object and attach it to a handle.
  * @file: DRM file.
  * @ddev: DRM device.
- * @exclusive_vm: Exclusive VM. Not NULL if the GEM object can't be shared.
  * @size: Size of the GEM object to allocate.
  * @flags: Combination of drm_ethos_bo_flags flags.
  * @handle: Pointer holding the handle pointing to the new GEM object.
@@ -149,6 +147,12 @@ struct cmd_state {
 	struct feat_matrix ifm2;
 };
 
+static void cmd_state_init(struct cmd_state *st)
+{
+	/* Initialize to all 1s to detect missing setup */
+	memset(st, 0xff, sizeof(*st));
+}
+
 static u64 cmd_to_addr(u32 *cmd)
 {
 	return ((u64)((cmd[0] & 0xff0000) << 16)) | cmd[1];
@@ -177,8 +181,11 @@ static u64 feat_matrix_length(struct ethos_validated_cmdstream_info *info,
 			      struct feat_matrix *fm,
 			      u32 x, u32 y, u32 c)
 {
-	int storage = 0; // FIXME: support U85 3x1 tile
+	int storage = fm->precision >> 30;
 	int tile = 0;
+
+	if (fm->region < 0)
+		return U64_MAX;
 
 	switch (storage) {
 	case 0:
@@ -201,6 +208,9 @@ static u64 feat_matrix_length(struct ethos_validated_cmdstream_info *info,
 		}
 		break;
 	}
+	if (fm->base[tile] == U64_MAX)
+		return U64_MAX;
+
 	u64 addr = fm->base[tile] + y * fm->stride_y;
 
 	switch ((fm->precision >> 6) & 0x3) { // format
@@ -218,7 +228,7 @@ static u64 feat_matrix_length(struct ethos_validated_cmdstream_info *info,
 	return addr;
 }
 
-static void calc_sizes(struct drm_device *ddev,
+static int calc_sizes(struct drm_device *ddev,
 		       struct ethos_validated_cmdstream_info *info,
 		       u16 op, struct cmd_state *st,
 		       bool ifm, bool ifm2, bool weight, bool scale)
@@ -228,6 +238,8 @@ static void calc_sizes(struct drm_device *ddev,
 	size_t slen = 0;
 
 	if (ifm) {
+		if (st->ifm.stride_kernel == U16_MAX)
+			return -EINVAL;
 		u32 stride_y = ((st->ifm.stride_kernel >> 8) & 0x2) + ((st->ifm.stride_kernel >> 1) & 0x1) + 1;
 		u32 stride_x = ((st->ifm.stride_kernel >> 5) & 0x2) + (st->ifm.stride_kernel & 0x1) + 1;
 		u32 ifm_height = st->ofm.height[2] * stride_y + st->ifm.height[2] - (st->ifm.pad_top + st->ifm.pad_bottom);
@@ -235,6 +247,8 @@ static void calc_sizes(struct drm_device *ddev,
 
 		len = feat_matrix_length(info, &st->ifm, ifm_width,
 					 ifm_height, st->ifm.depth);
+		if (len == U64_MAX)
+			return -EINVAL;
 		slen += snprintf(str, 80, "IFM:%d:0x%llx-0x%llx ",
 				 st->ifm.region, st->ifm.base[0], len);
 
@@ -243,11 +257,16 @@ static void calc_sizes(struct drm_device *ddev,
 	if (ifm2) {
 		len = feat_matrix_length(info, &st->ifm2, st->ifm.depth,
 					 0, st->ofm.depth);
+		if (len == U64_MAX)
+			return -EINVAL;
 		slen += snprintf(str + slen, 80 - slen, "IFM2:%d:0x%llx-0x%llx ",
 				 st->ifm2.region, st->ifm2.base[0], len);
 	}
 
 	if (weight) {
+		if (st->weight[0].region < 0 || st->weight[0].base == U64_MAX ||
+		    st->weight[0].length == U32_MAX)
+			return -EINVAL;
 		info->region_size[st->weight[0].region] = max(info->region_size[st->weight[0].region],
 								st->weight[0].base + st->weight[0].length);
 		slen += snprintf(str + slen, 80 - slen, "W:%d:0x%llx-0x%llx ",
@@ -256,6 +275,9 @@ static void calc_sizes(struct drm_device *ddev,
 	}
 
 	if (scale) {
+		if (st->scale[0].region < 0 || st->scale[0].base == U64_MAX ||
+		    st->scale[0].length == U32_MAX)
+			return -EINVAL;
 		info->region_size[st->scale[0].region] = max(info->region_size[st->scale[0].region],
 								st->scale[0].base + st->scale[0].length);
 		slen += snprintf(str + slen, 80 - slen, "S:%d:0x%llx-0x%llx ",
@@ -265,10 +287,13 @@ static void calc_sizes(struct drm_device *ddev,
 
 	len = feat_matrix_length(info, &st->ofm, st->ofm.width,
 				 st->ofm.height[2], st->ofm.depth);
+	if (len == U64_MAX)
+		return -EINVAL;
 	info->output_region[st->ofm.region] = true;
 
 	dev_info(ddev->dev, "cmd: OP:%d %sOFM:%d:0x%llx-0x%llx\n",
 			op, str, st->ofm.region, st->ofm.base[0], len);
+	return 0;
 }
 
 static int
@@ -278,8 +303,10 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 {
 	struct ethos_validated_cmdstream_info *info;
 	u32 *bocmds = bo->base.vaddr;
-	struct cmd_state st = {};
-	int i;
+	struct cmd_state st;
+	int i, ret;
+
+	cmd_state_init(&st);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -291,17 +318,20 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 		u32 cmds[2];
 		u64 addr;
 
-		if (get_user(cmds[0], ucmds++))
+		if (get_user(cmds[0], ucmds++)) {
+			ret = -EFAULT;
 			goto fault;
-
+		}
 		bocmds[i] = cmds[0];
 
 		u16 cmd = cmds[0];
 		u16 param = cmds[0] >> 16;
 
 		if (cmd & 0x4000) {
-			if (get_user(cmds[1], ucmds++))
+			if (get_user(cmds[1], ucmds++)) {
+				ret = -EFAULT;
 				goto fault;
+			}
 			i++;
 			bocmds[i] = cmds[1];
 			addr = cmd_to_addr(cmds);
@@ -321,17 +351,23 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 		case NPU_OP_DEPTHWISE:
 			use_ifm2 = param & 0x1;  // weights_ifm2
 			use_scale = !(st.ofm.precision & 0x100);
-			calc_sizes(ddev, info, cmd, &st, true, use_ifm2, !use_ifm2, use_scale);
+			ret = calc_sizes(ddev, info, cmd, &st, true, use_ifm2, !use_ifm2, use_scale);
+			if (ret)
+				goto fault;
 			break;
 		case NPU_OP_POOL:
 			use_ifm = param != 0x4;  // pooling mode
 			use_scale = !(st.ofm.precision & 0x100);
-			calc_sizes(ddev, info, cmd, &st, use_ifm, false, false, use_scale);
+			ret = calc_sizes(ddev, info, cmd, &st, use_ifm, false, false, use_scale);
+			if (ret)
+				goto fault;
 			break;
 		case NPU_OP_ELEMENTWISE:
 			use_ifm2 = !((st.ifm2.broadcast == 8) || (param == 5) || (param == 6) || (param == 7) || (param == 0x24));
 			use_ifm = st.ifm.broadcast != 8;
-			calc_sizes(ddev, info, cmd, &st, use_ifm, use_ifm2, false, false);
+			ret = calc_sizes(ddev, info, cmd, &st, use_ifm, use_ifm2, false, false);
+			if (ret)
+				goto fault;
 			break;
 		case NPU_OP_RESIZE: // U85 only
 			WARN_ON(1); // TODO
@@ -565,7 +601,7 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 
 fault:
 	kfree(info);
-	return -EFAULT;
+	return ret;
 }
 
 /**
