@@ -263,7 +263,7 @@ static int ethos_reset(struct ethos_device *ethosdev)
 	}
 
 	if (ethosdev->sram)
-		memset(ethosdev->sram, 0, ethosdev->npu_info.sram_size);
+		memset_io(ethosdev->sram, 0, ethosdev->npu_info.sram_size);
 
 	return 0;
 }

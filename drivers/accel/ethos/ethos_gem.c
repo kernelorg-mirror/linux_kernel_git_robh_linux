@@ -13,9 +13,7 @@ static void ethos_gem_free_object(struct drm_gem_object *obj)
 {
 	struct ethos_gem_object *bo = to_ethos_bo(obj);
 
-	if (bo->info)
-		kfree(bo->info);
-
+	kfree(bo->info);
 	drm_gem_free_mmap_offset(&bo->base.base);
 	drm_gem_dma_free(&bo->base);
 }

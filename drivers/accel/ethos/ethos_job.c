@@ -552,7 +552,7 @@ static int ethos_ioctl_submit_job(struct drm_device *dev, struct drm_file *file,
 		/* Verify the command stream doesn't have accesses outside the BO */
 		if (cmd_info->region_size[i] > gem->size) {
 			dev_err(dev->dev,
-				"cmd stream region %d size greater than BO size (%lld > %ld)\n",
+				"cmd stream region %d size greater than BO size (%llu > %zu)\n",
 				i, cmd_info->region_size[i], gem->size);
 			ret = -EOVERFLOW;
 			goto out_cleanup_job;
