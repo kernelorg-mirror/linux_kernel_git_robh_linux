@@ -127,7 +127,7 @@ static int ethos_ioctl_cmdstream_bo_create(struct drm_device *ddev, void *data,
 
 	args->flags |= DRM_ETHOS_BO_NO_MMAP;
 
-	ret = ethos_gem_cmdstream_create(file, ddev, &args->size, args->data,
+	ret = ethos_gem_cmdstream_create(file, ddev, args->size, args->data,
 					 args->flags, &args->handle);
 
 out_dev_exit:

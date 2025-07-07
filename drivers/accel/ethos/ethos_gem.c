@@ -616,14 +616,14 @@ fault:
 int
 ethos_gem_cmdstream_create(struct drm_file *file,
 			       struct drm_device *ddev,
-			       u32 *size, u64 data, u32 flags, u32 *handle)
+			       u32 size, u64 data, u32 flags, u32 *handle)
 {
 	int ret;
 	struct drm_gem_dma_object *mem;
 	struct ethos_gem_object *bo;
 
-	dev_info(ddev->dev, "creating cmd BO\n");
-	mem = drm_gem_dma_create(ddev, *size);
+	dev_info(ddev->dev, "creating cmd BO, size %d\n", size);
+	mem = drm_gem_dma_create(ddev, size);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
@@ -631,7 +631,7 @@ ethos_gem_cmdstream_create(struct drm_file *file,
 	bo->flags = flags;
 	dev_info(ddev->dev, "created cmd BO at %llx\n", (u64)bo->base.vaddr);
 
-	ret = ethos_gem_cmdstream_copy_and_validate(ddev, (void __user *)(uintptr_t)data, bo, *size);
+	ret = ethos_gem_cmdstream_copy_and_validate(ddev, (void __user *)(uintptr_t)data, bo, size);
 	if (ret)
 		goto fail;
 
@@ -640,8 +640,6 @@ ethos_gem_cmdstream_create(struct drm_file *file,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file, &mem->base, handle);
-	if (!ret)
-		*size = bo->base.base.size;
 	dev_info(ddev->dev, "created cmd BO handle %x\n", *handle);
 
 fail:
