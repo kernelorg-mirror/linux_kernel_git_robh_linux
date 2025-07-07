@@ -308,7 +308,7 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 		}
 
 		switch(cmd) {
-		case 0x10: // NPU_OP_DMA_START
+		case NPU_OP_DMA_START:
 			u64 srclen = dma_length(info, st.dma.mode, st.dma.size0, st.dma.size1, &st.dma.src);
 			u64 dstlen = dma_length(info, st.dma.mode, st.dma.size0, st.dma.size1, &st.dma.dst);
 			if (st.dma.dst.region >= 0)
@@ -317,235 +317,235 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 				 st.dma.src.region, st.dma.src.offset, srclen,
 				 st.dma.dst.region, st.dma.dst.offset, dstlen);
 			break;
-		case 0x2: // NPU_OP_CONV
-		case 0x3: // NPU_OP_DEPTHWISE
+		case NPU_OP_CONV:
+		case NPU_OP_DEPTHWISE:
 			use_ifm2 = param & 0x1;  // weights_ifm2
 			use_scale = !(st.ofm.precision & 0x100);
 			calc_sizes(ddev, info, cmd, &st, true, use_ifm2, !use_ifm2, use_scale);
 			break;
-		case 0x5: // NPU_OP_POOL
+		case NPU_OP_POOL:
 			use_ifm = param != 0x4;  // pooling mode
 			use_scale = !(st.ofm.precision & 0x100);
 			calc_sizes(ddev, info, cmd, &st, use_ifm, false, false, use_scale);
 			break;
-		case 0x6: // NPU_OP_ELEMENTWISE
+		case NPU_OP_ELEMENTWISE:
 			use_ifm2 = !((st.ifm2.broadcast == 8) || (param == 5) || (param == 6) || (param == 7) || (param == 0x24));
 			use_ifm = st.ifm.broadcast != 8;
 			calc_sizes(ddev, info, cmd, &st, use_ifm, use_ifm2, false, false);
 			break;
-		case 0x7: // NPU_OP_RESIZE (U85)
+		case NPU_OP_RESIZE: // U85 only
 			WARN_ON(1); // TODO
 			break;
-		case 0x120: // NPU_SET_KERNEL_WIDTH_M1
+		case NPU_SET_KERNEL_WIDTH_M1:
 			st.ifm.width = param;
 			break;
-		case 0x121: // NPU_SET_KERNEL_HEIGHT_M1
+		case NPU_SET_KERNEL_HEIGHT_M1:
 			st.ifm.height[2] = param;
 			break;
-		case 0x100: // NPU_SET_IFM_PAD_TOP
+		case NPU_SET_IFM_PAD_TOP:
 			st.ifm.pad_top = param & 0x7f;
 			break;
-		case 0x101: // NPU_SET_IFM_PAD_LEFT
+		case NPU_SET_IFM_PAD_LEFT:
 			st.ifm.pad_left = param & 0x7f;
 			break;
-		case 0x102: // NPU_SET_IFM_PAD_RIGHT
+		case NPU_SET_IFM_PAD_RIGHT:
 			st.ifm.pad_right = param & 0xff;
 			break;
-		case 0x103: // NPU_SET_IFM_PAD_BOTTOM
+		case NPU_SET_IFM_PAD_BOTTOM:
 			st.ifm.pad_bottom = param & 0xff;
 			break;
-		case 0x104: // NPU_SET_IFM_DEPTH_M1
+		case NPU_SET_IFM_DEPTH_M1:
 			st.ifm.depth = param;
 			break;
-		case 0x105: // NPU_SET_IFM_PRECISION
+		case NPU_SET_IFM_PRECISION:
 			st.ifm.precision = param;
 			break;
-		case 0x108: // NPU_SET_IFM_BROADCAST
+		case NPU_SET_IFM_BROADCAST:
 			st.ifm.broadcast = param;
 			break;
-		case 0x10f: // NPU_SET_IFM_REGION
+		case NPU_SET_IFM_REGION:
 			st.ifm.region = param & 0x7f;
 			break;
-		case 0x10a: // NPU_SET_IFM_WIDTH0_M1
+		case NPU_SET_IFM_WIDTH0_M1:
 			st.ifm.width0 = param;
 			break;
-		case 0x10b: // NPU_SET_IFM_HEIGHT0_M1
+		case NPU_SET_IFM_HEIGHT0_M1:
 			st.ifm.height[0] = param;
 			break;
-		case 0x10c: // NPU_SET_IFM_HEIGHT1_M1
+		case NPU_SET_IFM_HEIGHT1_M1:
 			st.ifm.height[1] = param;
 			break;
-		case 0x4000: // NPU_SET_IFM_BASE0
-		case 0x4001: // NPU_SET_IFM_BASE1
-		case 0x4002: // NPU_SET_IFM_BASE2
-		case 0x4003: // NPU_SET_IFM_BASE3
+		case NPU_SET_IFM_BASE0:
+		case NPU_SET_IFM_BASE1:
+		case NPU_SET_IFM_BASE2:
+		case NPU_SET_IFM_BASE3:
 			st.ifm.base[cmd & 0x3] = addr;
 			break;
-		case 0x4004: // NPU_SET_IFM_STRIDE_X
+		case NPU_SET_IFM_STRIDE_X:
 			st.ifm.stride_x = addr;
 			break;
-		case 0x4005: // NPU_SET_IFM_STRIDE_Y
+		case NPU_SET_IFM_STRIDE_Y:
 			st.ifm.stride_y = addr;
 			break;
-		case 0x4006: // NPU_SET_IFM_STRIDE_C
+		case NPU_SET_IFM_STRIDE_C:
 			st.ifm.stride_c = addr;
 			break;
 
-		case 0x111: // NPU_SET_OFM_WIDTH_M1
+		case NPU_SET_OFM_WIDTH_M1:
 			st.ofm.width = param;
 			break;
-		case 0x112: // NPU_SET_OFM_HEIGHT_M1
+		case NPU_SET_OFM_HEIGHT_M1:
 			st.ofm.height[2] = param;
 			break;
-		case 0x113: // NPU_SET_OFM_DEPTH_M1
+		case NPU_SET_OFM_DEPTH_M1:
 			st.ofm.depth = param;
 			break;
-		case 0x114: // NPU_SET_OFM_PRECISION
+		case NPU_SET_OFM_PRECISION:
 			st.ofm.precision = param;
 			break;
-		case 0x11f: // NPU_SET_OFM_REGION
+		case NPU_SET_OFM_REGION:
 			st.ofm.region = param & 0x7;
 			break;
-		case 0x11a: // NPU_SET_OFM_WIDTH0_M1
+		case NPU_SET_OFM_WIDTH0_M1:
 			st.ofm.width0 = param;
 			break;
-		case 0x11b: // NPU_SET_OFM_HEIGHT0_M1
+		case NPU_SET_OFM_HEIGHT0_M1:
 			st.ofm.height[0] = param;
 			break;
-		case 0x11c: // NPU_SET_OFM_HEIGHT1_M1
+		case NPU_SET_OFM_HEIGHT1_M1:
 			st.ofm.height[1] = param;
 			break;
-		case 0x4010: // NPU_SET_OFM_BASE0
-		case 0x4011: // NPU_SET_OFM_BASE1
-		case 0x4012: // NPU_SET_OFM_BASE2
-		case 0x4013: // NPU_SET_OFM_BASE3
+		case NPU_SET_OFM_BASE0:
+		case NPU_SET_OFM_BASE1:
+		case NPU_SET_OFM_BASE2:
+		case NPU_SET_OFM_BASE3:
 			st.ofm.base[cmd & 0x3] = addr;
 			break;
-		case 0x4014: // NPU_SET_OFM_STRIDE_X
+		case NPU_SET_OFM_STRIDE_X:
 			st.ofm.stride_x = addr;
 			break;
-		case 0x4015: // NPU_SET_OFM_STRIDE_Y
+		case NPU_SET_OFM_STRIDE_Y:
 			st.ofm.stride_y = addr;
 			break;
-		case 0x4016: // NPU_SET_OFM_STRIDE_C
+		case NPU_SET_OFM_STRIDE_C:
 			st.ofm.stride_c = addr;
 			break;
 
-		case 0x180: // NPU_SET_IFM2_BROADCAST
+		case NPU_SET_IFM2_BROADCAST:
 			st.ifm2.broadcast = param;
 			break;
-		case 0x185: // NPU_SET_IFM2_PRECISION
+		case NPU_SET_IFM2_PRECISION:
 			st.ifm2.precision = param;
 			break;
-		case 0x18f: // NPU_SET_IFM2_REGION
+		case NPU_SET_IFM2_REGION:
 			st.ifm2.region = param & 0x7;
 			break;
-		case 0x18a: // NPU_SET_IFM2_WIDTH0_M1
+		case NPU_SET_IFM2_WIDTH0_M1:
 			st.ifm2.width0 = param;
 			break;
-		case 0x18b: // NPU_SET_IFM2_HEIGHT0_M1
+		case NPU_SET_IFM2_HEIGHT0_M1:
 			st.ifm2.height[0] = param;
 			break;
-		case 0x18c: // NPU_SET_IFM2_HEIGHT1_M1
+		case NPU_SET_IFM2_HEIGHT1_M1:
 			st.ifm2.height[1] = param;
 			break;
-		case 0x4080: // NPU_SET_IFM2_BASE0
-		case 0x4081: // NPU_SET_IFM2_BASE1
-		case 0x4082: // NPU_SET_IFM2_BASE2
-		case 0x4083: // NPU_SET_IFM2_BASE3
+		case NPU_SET_IFM2_BASE0:
+		case NPU_SET_IFM2_BASE1:
+		case NPU_SET_IFM2_BASE2:
+		case NPU_SET_IFM2_BASE3:
 			st.ifm2.base[cmd & 0x3] = addr;
 			break;
-		case 0x4084: // NPU_SET_IFM_STRIDE_X
+		case NPU_SET_IFM2_STRIDE_X:
 			st.ifm2.stride_x = addr;
 			break;
-		case 0x4085: // NPU_SET_IFM_STRIDE_Y
+		case NPU_SET_IFM2_STRIDE_Y:
 			st.ifm2.stride_y = addr;
 			break;
-		case 0x4086: // NPU_SET_IFM2_STRIDE_C
+		case NPU_SET_IFM2_STRIDE_C:
 			st.ifm2.stride_c = addr;
 			break;
 
-		case 0x128: // NPU_SET_WEIGHT_REGION
+		case NPU_SET_WEIGHT_REGION:
 			st.weight[0].region = param & 0x7;
 			break;
-		case 0x129: // NPU_SET_SCALE_REGION
+		case NPU_SET_SCALE_REGION:
 			st.scale[0].region = param & 0x7;
 			break;
-		case 0x4020: // NPU_SET_WEIGHT_BASE
+		case NPU_SET_WEIGHT_BASE:
 			st.weight[0].base = addr;
 			break;
-		case 0x4021: // NPU_SET_WEIGHT_LENGTH
+		case NPU_SET_WEIGHT_LENGTH:
 			st.weight[0].length = cmds[1];
 			break;
-		case 0x4022: // NPU_SET_SCALE_BASE
+		case NPU_SET_SCALE_BASE:
 			st.scale[0].base = addr;
 			break;
-		case 0x4023: // NPU_SET_SCALE_LENGTH
+		case NPU_SET_SCALE_LENGTH:
 			st.scale[0].length = cmds[1];
 			break;
-		case 0x4090: // NPU_SET_WEIGHT1_BASE
+		case NPU_SET_WEIGHT1_BASE:
 			st.weight[1].base = addr;
 			break;
-		case 0x4091: // NPU_SET_WEIGHT1_LENGTH
+		case NPU_SET_WEIGHT1_LENGTH:
 			st.weight[1].length = cmds[1];
 			break;
-		case 0x4092: // NPU_SET_SCALE1_BASE/NPU_SET_WEIGHT2_BASE
+		case NPU_SET_SCALE1_BASE: // NPU_SET_WEIGHT2_BASE (U85)
 			if (0 /*U85*/)
 				st.weight[2].base = addr;
 			else
 				st.scale[1].base = addr;
 			break;
-		case 0x4093: // NPU_SET_SCALE1_LENGTH/NPU_SET_WEIGHT2_LENGTH
+		case NPU_SET_SCALE1_LENGTH: // NPU_SET_WEIGHT2_LENGTH (U85)
 			if (0 /*U85*/)
 				st.weight[1].length = cmds[1];
 			else
 				st.scale[1].length = cmds[1];
 			break;
-		case 0x4094: // NPU_SET_WEIGHT3_BASE
+		case NPU_SET_WEIGHT3_BASE:
 			st.weight[3].base = addr;
 			break;
-		case 0x4095: // NPU_SET_WEIGHT3_LENGTH
+		case NPU_SET_WEIGHT3_LENGTH:
 			st.weight[3].length = cmds[1];
 			break;
 
-		case 0x130: // NPU_SET_DMA0_SRC_REGION
+		case NPU_SET_DMA0_SRC_REGION:
 			if (param & 0x100)
 				st.dma.src.region = -1;
 			else
 				st.dma.src.region = param & 0x7;
 			st.dma.mode = (param >> 9) & 0x3;
 			break;
-		case 0x131: // NPU_SET_DMA0_DST_REGION
+		case NPU_SET_DMA0_DST_REGION:
 			if (param & 0x100)
 				st.dma.dst.region = -1;
 			else
 				st.dma.dst.region = param & 0x7;
 			break;
-		case 0x132: // NPU_SET_DMA0_SIZE0
+		case NPU_SET_DMA0_SIZE0:
 			st.dma.size0 = param;
 			break;
-		case 0x133: // NPU_SET_DMA0_SIZE1
+		case NPU_SET_DMA0_SIZE1:
 			st.dma.size1 = param;
 			break;
-		case 0x4033: // NPU_SET_DMA0_SRC_STRIDE0
+		case NPU_SET_DMA0_SRC_STRIDE0:
 			st.dma.src.stride[0] = ((s64)addr << 24) >> 24;
 			break;
-		case 0x4034: // NPU_SET_DMA0_SRC_STRIDE1
+		case NPU_SET_DMA0_SRC_STRIDE1:
 			st.dma.src.stride[1] = ((s64)addr << 24) >> 24;
 			break;
-		case 0x4035: // NPU_SET_DMA0_DST_STRIDE0
+		case NPU_SET_DMA0_DST_STRIDE0:
 			st.dma.dst.stride[0] = ((s64)addr << 24) >> 24;
 			break;
-		case 0x4036: // NPU_SET_DMA0_DST_STRIDE1
+		case NPU_SET_DMA0_DST_STRIDE1:
 			st.dma.dst.stride[1] = ((s64)addr << 24) >> 24;
 			break;
-		case 0x4030: // NPU_SET_DMA0_SRC
+		case NPU_SET_DMA0_SRC:
 			st.dma.src.offset = addr;
 			break;
-		case 0x4031: // NPU_SET_DMA0_DST
+		case NPU_SET_DMA0_DST:
 			st.dma.dst.offset = addr;
 			break;
-		case 0x4032: // NPU_SET_DMA0_LEN
+		case NPU_SET_DMA0_LEN:
 			st.dma.src.len = st.dma.dst.len = addr;
 			break;
 		default:
