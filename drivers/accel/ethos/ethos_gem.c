@@ -373,6 +373,9 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 		case NPU_SET_KERNEL_HEIGHT_M1:
 			st.ifm.height[2] = param;
 			break;
+		case NPU_SET_KERNEL_STRIDE:
+			st.ifm.stride_kernel = param;
+			break;
 		case NPU_SET_IFM_PAD_TOP:
 			st.ifm.pad_top = param & 0x7f;
 			break;
