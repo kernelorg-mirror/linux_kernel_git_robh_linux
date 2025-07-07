@@ -229,13 +229,11 @@ static u64 feat_matrix_length(struct ethos_validated_cmdstream_info *info,
 }
 
 static int calc_sizes(struct drm_device *ddev,
-		       struct ethos_validated_cmdstream_info *info,
-		       u16 op, struct cmd_state *st,
-		       bool ifm, bool ifm2, bool weight, bool scale)
+		      struct ethos_validated_cmdstream_info *info,
+		      u16 op, struct cmd_state *st,
+		      bool ifm, bool ifm2, bool weight, bool scale)
 {
 	u64 len;
-	char str[80];
-	size_t slen = 0;
 
 	if (ifm) {
 		if (st->ifm.stride_kernel == U16_MAX)
@@ -247,52 +245,51 @@ static int calc_sizes(struct drm_device *ddev,
 
 		len = feat_matrix_length(info, &st->ifm, ifm_width,
 					 ifm_height, st->ifm.depth);
+		dev_info(ddev->dev, "op %d: IFM:%d:0x%llx-0x%llx\n",
+			 op, st->ifm.region, st->ifm.base[0], len);
 		if (len == U64_MAX)
 			return -EINVAL;
-		slen += snprintf(str, 80, "IFM:%d:0x%llx-0x%llx ",
-				 st->ifm.region, st->ifm.base[0], len);
-
 	}
 
 	if (ifm2) {
 		len = feat_matrix_length(info, &st->ifm2, st->ifm.depth,
 					 0, st->ofm.depth);
+		dev_info(ddev->dev, "op %d: IFM2:%d:0x%llx-0x%llx ",
+				 op, st->ifm2.region, st->ifm2.base[0], len);
 		if (len == U64_MAX)
 			return -EINVAL;
-		slen += snprintf(str + slen, 80 - slen, "IFM2:%d:0x%llx-0x%llx ",
-				 st->ifm2.region, st->ifm2.base[0], len);
 	}
 
 	if (weight) {
+		dev_info(ddev->dev, "op %d: W:%d:0x%llx-0x%llx ",
+				 op, st->weight[0].region, st->weight[0].base,
+				 st->weight[0].base + st->weight[0].length - 1);
 		if (st->weight[0].region < 0 || st->weight[0].base == U64_MAX ||
 		    st->weight[0].length == U32_MAX)
 			return -EINVAL;
 		info->region_size[st->weight[0].region] = max(info->region_size[st->weight[0].region],
 								st->weight[0].base + st->weight[0].length);
-		slen += snprintf(str + slen, 80 - slen, "W:%d:0x%llx-0x%llx ",
-				 st->weight[0].region, st->weight[0].base,
-				 st->weight[0].base + st->weight[0].length - 1);
 	}
 
 	if (scale) {
+		dev_info(ddev->dev, "op %d: S:%d:0x%llx-0x%llx ",
+				 op, st->scale[0].region, st->scale[0].base,
+				 st->scale[0].base + st->scale[0].length - 1);
 		if (st->scale[0].region < 0 || st->scale[0].base == U64_MAX ||
 		    st->scale[0].length == U32_MAX)
 			return -EINVAL;
 		info->region_size[st->scale[0].region] = max(info->region_size[st->scale[0].region],
 								st->scale[0].base + st->scale[0].length);
-		slen += snprintf(str + slen, 80 - slen, "S:%d:0x%llx-0x%llx ",
-				 st->scale[0].region, st->scale[0].base,
-				 st->scale[0].base + st->scale[0].length - 1);
 	}
 
 	len = feat_matrix_length(info, &st->ofm, st->ofm.width,
 				 st->ofm.height[2], st->ofm.depth);
+	dev_info(ddev->dev, "op %d: OFM:%d:0x%llx-0x%llx\n",
+		 op, st->ofm.region, st->ofm.base[0], len);
 	if (len == U64_MAX)
 		return -EINVAL;
 	info->output_region[st->ofm.region] = true;
 
-	dev_info(ddev->dev, "cmd: OP:%d %sOFM:%d:0x%llx-0x%llx\n",
-			op, str, st->ofm.region, st->ofm.base[0], len);
 	return 0;
 }
 
