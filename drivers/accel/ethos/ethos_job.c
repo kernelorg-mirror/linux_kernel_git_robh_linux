@@ -64,11 +64,6 @@ static void ethos_job_hw_submit(struct ethos_device *dev, struct ethos_job *job)
 	if (atomic_read(&dev->reset.pending))
 		return;
 
-	/* GO ! */
-
-//	task = &job->tasks[job->next_task_idx];
-//	job->next_task_idx++;   /* TODO: Do this only after a successful run? */
-
 	for (int i = 0; i < job->region_cnt; i++) {
 		struct drm_gem_dma_object *bo;
 		int region = job->region_bo_num[i];
@@ -89,7 +84,7 @@ static void ethos_job_hw_submit(struct ethos_device *dev, struct ethos_job *job)
 	writel_relaxed(upper_32_bits(cmd_bo->dma_addr), dev->regs + NPU_REG_QBASE_HI);
 	writel_relaxed(cmd_bo->base.size, dev->regs + NPU_REG_QSIZE);
 
-	writel(0x1, dev->regs + NPU_REG_CMD);
+	writel(CMD_TRANSITION_TO_RUN, dev->regs + NPU_REG_CMD);
 
 	dev_info(dev->base.dev,
 		"Submitted cmd at 0x%llx to core\n", cmd_bo->dma_addr);

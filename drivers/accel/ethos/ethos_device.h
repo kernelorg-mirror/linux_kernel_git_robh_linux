@@ -41,10 +41,17 @@ struct gen_pool;
 
 #define STATUS_IRQ_RAISED	BIT(1)
 #define STATUS_BUS_STATUS	BIT(2)
+#define STATUS_RESET_STATUS	BIT(3)
 #define STATUS_CMD_PARSE_ERR	BIT(4)
 #define STATUS_CMD_END_REACHED	BIT(5)
 
 #define CMD_CLEAR_IRQ		BIT(1)
+#define CMD_TRANSITION_TO_RUN	BIT(0)
+
+#define RESET_PENDING_CSL	BIT(1)
+#define RESET_PENDING_CPL	BIT(0)
+
+#define PROT_ACTIVE_CSL		BIT(1)
 
 enum ethos_cmds {
 	NPU_OP_CONV = 0x2,

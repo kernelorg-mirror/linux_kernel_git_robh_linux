@@ -246,15 +246,18 @@ static int ethos_reset(struct ethos_device *ethosdev)
 	int ret;
 	u32 reg;
 
-	writel_relaxed(0x3, ethosdev->regs + NPU_REG_RESET);
+	writel_relaxed(RESET_PENDING_CSL,
+		       ethosdev->regs + NPU_REG_RESET);
 
-	ret = readl_poll_timeout(ethosdev->regs + NPU_REG_STATUS, reg, !(reg & 0x4),
+	ret = readl_poll_timeout(ethosdev->regs + NPU_REG_STATUS, reg,
+				 !FIELD_GET(STATUS_RESET_STATUS, reg),
 				 USEC_PER_MSEC, USEC_PER_SEC);
 	if (ret)
 		return ret;
 
-	if ((readl_relaxed(ethosdev->regs + NPU_REG_PROT) & 0x3) != 0x3) {
-		dev_info(ethosdev->base.dev, "read PROT = %x\n", readl_relaxed(ethosdev->regs + NPU_REG_PROT));
+	if (!FIELD_GET(PROT_ACTIVE_CSL, readl_relaxed(ethosdev->regs + NPU_REG_PROT))) {
+		dev_info(ethosdev->base.dev, "read PROT = %x\n",
+			 readl_relaxed(ethosdev->regs + NPU_REG_PROT));
 //		return -EINVAL;
 	}
 	// TODO AXI port config, defaults might work
