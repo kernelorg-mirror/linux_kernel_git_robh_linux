@@ -291,6 +291,51 @@ static int calc_sizes(struct drm_device *ddev,
 	return 0;
 }
 
+static int calc_sizes_elemwise(struct drm_device *ddev,
+			       struct ethos_validated_cmdstream_info *info,
+			       u16 op, struct cmd_state *st,
+			       bool ifm, bool ifm2)
+{
+	u32 height, width, depth;
+	u64 len;
+
+	if (ifm) {
+		height = st->ifm.broadcast & 0x1 ? 0 : st->ofm.height[2];
+		width = st->ifm.broadcast & 0x2 ? 0 : st->ofm.width;
+		depth = st->ifm.broadcast & 0x4 ? 0 : st->ofm.depth;
+
+		len = feat_matrix_length(info, &st->ifm, width,
+					 height, depth);
+		dev_info(ddev->dev, "op %d: IFM:%d:0x%llx-0x%llx\n",
+			 op, st->ifm.region, st->ifm.base[0], len);
+		if (len == U64_MAX)
+			return -EINVAL;
+	}
+
+	if (ifm2) {
+		height = st->ifm2.broadcast & 0x1 ? 0 : st->ofm.height[2];
+		width = st->ifm2.broadcast & 0x2 ? 0 : st->ofm.width;
+		depth = st->ifm2.broadcast & 0x4 ? 0 : st->ofm.depth;
+
+		len = feat_matrix_length(info, &st->ifm2, width,
+					 height, depth);
+		dev_info(ddev->dev, "op %d: IFM2:%d:0x%llx-0x%llx ",
+				 op, st->ifm2.region, st->ifm2.base[0], len);
+		if (len == U64_MAX)
+			return -EINVAL;
+	}
+
+	len = feat_matrix_length(info, &st->ofm, st->ofm.width,
+				 st->ofm.height[2], st->ofm.depth);
+	dev_info(ddev->dev, "op %d: OFM:%d:0x%llx-0x%llx\n",
+		 op, st->ofm.region, st->ofm.base[0], len);
+	if (len == U64_MAX)
+		return -EINVAL;
+	info->output_region[st->ofm.region] = true;
+
+	return 0;
+}
+
 static int
 ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 				      u32 __user *ucmds,
@@ -360,7 +405,7 @@ ethos_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 		case NPU_OP_ELEMENTWISE:
 			use_ifm2 = !((st.ifm2.broadcast == 8) || (param == 5) || (param == 6) || (param == 7) || (param == 0x24));
 			use_ifm = st.ifm.broadcast != 8;
-			ret = calc_sizes(ddev, info, cmd, &st, use_ifm, use_ifm2, false, false);
+			ret = calc_sizes_elemwise(ddev, info, cmd, &st, use_ifm, use_ifm2);
 			if (ret)
 				goto fault;
 			break;
