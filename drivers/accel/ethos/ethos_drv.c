@@ -248,9 +248,7 @@ static int ethos_reset(struct ethos_device *ethosdev)
 	int ret;
 	u32 reg;
 
-	writel_relaxed(RESET_PENDING_CSL,
-		       ethosdev->regs + NPU_REG_RESET);
-
+	writel_relaxed(RESET_PENDING_CSL, ethosdev->regs + NPU_REG_RESET);
 	ret = readl_poll_timeout(ethosdev->regs + NPU_REG_STATUS, reg,
 				 !FIELD_GET(STATUS_RESET_STATUS, reg),
 				 USEC_PER_MSEC, USEC_PER_SEC);
@@ -258,9 +256,8 @@ static int ethos_reset(struct ethos_device *ethosdev)
 		return ret;
 
 	if (!FIELD_GET(PROT_ACTIVE_CSL, readl_relaxed(ethosdev->regs + NPU_REG_PROT))) {
-		dev_info(ethosdev->base.dev, "read PROT = %x\n",
+		dev_warn(ethosdev->base.dev, "Could not reset to non-secure mode (PROT = %x)\n",
 			 readl_relaxed(ethosdev->regs + NPU_REG_PROT));
-//		return -EINVAL;
 	}
 
 	if (ethos_is_u65(ethosdev)) {
