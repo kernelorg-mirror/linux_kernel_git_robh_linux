@@ -241,6 +241,8 @@ static bool ethos_is_u65(const struct ethos_device *ethosdev)
 	return FIELD_GET(ID_ARCH_MAJOR_MASK, ethosdev->npu_info.id) == 1;
 }
 
+#define AXI_LIMIT_CFG 0x1f3f0000
+
 static int ethos_reset(struct ethos_device *ethosdev)
 {
 	int ret;
@@ -260,9 +262,14 @@ static int ethos_reset(struct ethos_device *ethosdev)
 			 readl_relaxed(ethosdev->regs + NPU_REG_PROT));
 //		return -EINVAL;
 	}
-	// TODO AXI port config, defaults might work
+
 	if (ethos_is_u65(ethosdev)) {
-		writel_relaxed(0x1f3f0032, ethosdev->regs + NPU_REG_AXILIMIT0);
+		/* Assign region 2 to AXI M0, everything else to AXI M1*/
+		writel_relaxed(0x0000aa8a, ethosdev->regs + NPU_REG_REGIONCFG);
+		writel_relaxed(AXI_LIMIT_CFG, ethosdev->regs + NPU_REG_AXILIMIT0);
+		writel_relaxed(AXI_LIMIT_CFG, ethosdev->regs + NPU_REG_AXILIMIT1);
+		writel_relaxed(AXI_LIMIT_CFG, ethosdev->regs + NPU_REG_AXILIMIT2);
+		writel_relaxed(AXI_LIMIT_CFG, ethosdev->regs + NPU_REG_AXILIMIT3);
 	}
 
 	if (ethosdev->sram)
