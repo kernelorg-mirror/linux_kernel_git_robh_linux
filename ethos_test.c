@@ -88,7 +88,7 @@ int submit_job(int fd, bo_handle cmd, bo_handle *region_bos, int sram_size)
 
 }
 
-#define BO_SIZE 0x00100000UL
+#define BO_SIZE 0x001000UL
 
 void dma_test(void)
 {
@@ -115,7 +115,7 @@ void dma_test(void)
 	dst_bo = bo_create(fd, BO_SIZE, &region_bos[2]);
 
 	for (int i = 0; i < BO_SIZE/4; i++)
-		src_bo[i] = 0xdeadbeef;
+		src_bo[i] = 0x12345678 + i;
 
 	printf("cmd buffer = %p\n", cmds);
 	cmd_handle = cmd_bo_create(fd, cmds, sizeof(cmds));
@@ -127,13 +127,13 @@ void dma_test(void)
 
 	//src_bo += BO_SIZE/4 - 4;
 	//printf("src %llx: 0x%x 0x%x 0x%x 0x%x\n", src_bo, src_bo[0], src_bo[1], src_bo[2], src_bo[3]);
-	dst_bo += BO_SIZE/4 - 4;
-	printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo, dst_bo[0], dst_bo[1], dst_bo[2], dst_bo[3]);
+	for (int i = 0; i < BO_SIZE/4; i+=4)
+		printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo + i, dst_bo[i], dst_bo[i+1], dst_bo[i+2], dst_bo[i+3]);
 	close(fd);
 	sleep(1);
 }
 
-#define SRAM_SIZE 0x10000
+#define SRAM_SIZE 0x1000
 
 void sram_dma_test(void)
 {
@@ -156,6 +156,7 @@ void sram_dma_test(void)
 		0x00004031, 0x00000000, // cmd1.NPU_SET_DMA0_DST
 		0x00004032, SRAM_SIZE, // cmd1.NPU_SET_DMA0_LEN
 		0x00000010, // cmd0.NPU_OP_DMA_START
+		0x00000011, // cmd0.NPU_OP_DMA_WAIT               0
 		0xffff0000, // cmd0.NPU_OP_STOP               65535
 	};
 
@@ -166,7 +167,7 @@ void sram_dma_test(void)
 	dst_bo = bo_create(fd, SRAM_SIZE, &region_bos[1]);
 
 	for (int i = 0; i < SRAM_SIZE/4; i++)
-		src_bo[i] = 0xdeadbeef;
+		src_bo[i] = 0x12345678 + i;
 
 	printf("cmd buffer = %p\n", cmds);
 	cmd_handle = cmd_bo_create(fd, cmds, sizeof(cmds));
@@ -176,8 +177,8 @@ void sram_dma_test(void)
 	if (ret)
 		printf("error waiting on BO - %d\n", ret);
 
-	dst_bo += SRAM_SIZE/4 - 4;
-	printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo, dst_bo[0], dst_bo[1], dst_bo[2], dst_bo[3]);
+	for (int i = 0; i < SRAM_SIZE/4; i+=4)
+		printf("dst %llx: 0x%x 0x%x 0x%x 0x%x\n", dst_bo + i, dst_bo[i], dst_bo[i+1], dst_bo[i+2], dst_bo[i+3]);
 	close(fd);
 	sleep(1);
 }
