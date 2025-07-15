@@ -179,7 +179,7 @@ static u64 feat_matrix_length(struct ethos_validated_cmdstream_info *info,
 			      struct feat_matrix *fm,
 			      u32 x, u32 y, u32 c)
 {
-	int storage = fm->precision >> 30;
+	int storage = fm->precision >> 14;
 	int tile = 0;
 
 	if (fm->region < 0)
