@@ -220,7 +220,7 @@ static int ethosu_reset(struct ethosu_device *ethosudev)
 				 !FIELD_GET(STATUS_RESET_STATUS, reg),
 				 USEC_PER_MSEC, USEC_PER_SEC);
 	if (ret)
-		return ret;
+		writel_relaxed(0, ethosudev->regs + NPU_REG_STATUS);
 
 	if (!FIELD_GET(PROT_ACTIVE_CSL, readl_relaxed(ethosudev->regs + NPU_REG_PROT))) {
 		dev_warn(ethosudev->base.dev, "Could not reset to non-secure mode (PROT = %x)\n",
