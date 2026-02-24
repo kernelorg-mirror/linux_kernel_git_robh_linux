@@ -25,6 +25,7 @@ properties:
 
   regulators:
     type: object
+    additionalProperties: false
 
     patternProperties:
       "^(SW[1-6]|V(CAM|CSI|DAC|DIG|FUSE|HVIO|SDIO|PLL|RF[12]|RFREF|WLAN[12]|SIM|SIMCARD|VIB|USB|AUDIO))$":

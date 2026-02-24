@@ -41,7 +41,10 @@ properties:
             minimum: 1
             maximum: 5
 
-additionalProperties:
+unevaluatedProperties:
+  type: object
+  additionalProperties: true
+
   properties:
     reg:
       minimum: 1

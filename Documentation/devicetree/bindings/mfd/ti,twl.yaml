@@ -221,6 +221,7 @@ properties:
 
   charger:
     type: object
+    additionalProperties: true
 
     properties:
       compatible: true

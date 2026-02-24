@@ -90,6 +90,8 @@ properties:
   regulators:
     type: object
     description: Regulator child nodes
+    additionalProperties: false
+
     patternProperties:
       "^sbb[0-3]$":
         type: object
@@ -181,4 +183,3 @@ examples:
         };
       };
     };
-

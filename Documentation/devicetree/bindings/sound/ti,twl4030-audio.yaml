@@ -21,6 +21,7 @@ properties:
   codec:
     type: object
     description: Node containing properties for the audio codec functionality.
+    additionalProperties: false
 
     properties:
       ti,digimic_delay:

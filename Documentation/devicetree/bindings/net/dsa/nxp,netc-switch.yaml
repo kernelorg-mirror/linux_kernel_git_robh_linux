@@ -44,6 +44,8 @@ properties:
 
   ethernet-ports:
     type: object
+    additionalProperties: true
+
     patternProperties:
       "^ethernet-port@[0-9a-f]$":
         type: object
